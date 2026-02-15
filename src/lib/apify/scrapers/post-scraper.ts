@@ -43,6 +43,11 @@ interface ApifyPostOutput {
     comments?: number;
     shares?: number;
   };
+  author?: {
+    publicIdentifier?: string;
+    linkedinUrl?: string;
+    type?: string;
+  };
   type?: string;
   postType?: string;
   isRepost?: boolean;
@@ -147,12 +152,52 @@ function isRepost(post: ApifyPostOutput): boolean {
   return type.includes('reshare') || type.includes('repost');
 }
 
+/** Extract the /in/slug from a LinkedIn profile URL */
+function extractProfileSlug(url: string): string {
+  const match = url.match(/\/in\/([^/?]+)/);
+  return match ? match[1].toLowerCase() : '';
+}
+
+/** Check if the post was actually authored by the profile we scraped */
+function isAuthoredBy(post: ApifyPostOutput, profileUrl: string): boolean {
+  const expectedSlug = extractProfileSlug(profileUrl);
+  if (!expectedSlug) return true; // Can't verify, allow through
+
+  // Check author.publicIdentifier (most reliable)
+  if (post.author?.publicIdentifier) {
+    return post.author.publicIdentifier.toLowerCase() === expectedSlug;
+  }
+
+  // Check author.linkedinUrl
+  if (post.author?.linkedinUrl) {
+    return extractProfileSlug(post.author.linkedinUrl) === expectedSlug;
+  }
+
+  // Check if author is a company (type: 'company') — never belongs to a person
+  if (post.author?.type === 'company') {
+    return false;
+  }
+
+  // Fallback: check the post URL contains the profile slug
+  const postUrl = post.linkedinUrl || post.url || post.postUrl || '';
+  if (postUrl.includes('/posts/')) {
+    const postSlug = postUrl.split('/posts/')[1]?.split('_')[0]?.toLowerCase() || '';
+    return postSlug === expectedSlug;
+  }
+
+  return true; // Can't determine, allow through
+}
+
 export function mapPostToDatabase(
   post: ApifyPostOutput,
   companyUrl: string,
+  profileUrl?: string,
 ): MappedPost | null {
   // Exclude reposts
   if (isRepost(post)) return null;
+
+  // Exclude posts not authored by the target profile
+  if (profileUrl && !isAuthoredBy(post, profileUrl)) return null;
 
   const linkedinPostId = post.postId || post.shareUrn || post.urn || post.entityId || post.id || '';
   const linkedinUrl = post.linkedinUrl || post.url || post.postUrl || '';
@@ -213,7 +258,7 @@ export async function scrapePostsForProfile(
 
   const companyUrl = ''; // Will be passed from orchestrator
   const posts = result.items
-    .map((item) => mapPostToDatabase(item, companyUrl))
+    .map((item) => mapPostToDatabase(item, companyUrl, profileUrl))
     .filter((p): p is MappedPost => p !== null);
 
   return {
@@ -245,7 +290,7 @@ export async function scrapePostsForProfiles(
     totalCost += result.costUsd;
 
     const posts = result.items
-      .map((item) => mapPostToDatabase(item, companyUrl))
+      .map((item) => mapPostToDatabase(item, companyUrl, profileUrl))
       .filter((p): p is MappedPost => p !== null);
 
     postsByAuthor.set(authorId, posts);
