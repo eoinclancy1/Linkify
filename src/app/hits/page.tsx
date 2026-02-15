@@ -38,11 +38,12 @@ export default function HitsPage() {
 
   // ── Carousel data ──
 
-  // "Employees" — group by employee, show top hit per employee
+  // "Employees" — group by employee, show top hit per employee (exclude Content Engineering)
   const employeeHits = useMemo(() => {
     if (!hits) return [];
     const byEmployee = new Map<string, Hit>();
     for (const h of hits) {
+      if (h.department === 'Content Engineering') continue;
       const existing = byEmployee.get(h.authorId);
       if (!existing || h.likes > existing.likes) {
         byEmployee.set(h.authorId, h);
@@ -57,10 +58,19 @@ export default function HitsPage() {
     return hits.filter(h => h.mentionsCompany).sort((a, b) => b.likes - a.likes);
   }, [hits]);
 
-  // "Engineering Department" — hits from engineering
-  const engineeringHits = useMemo(() => {
+  // Per-department hits — one carousel per department that has hits
+  const departmentGroups = useMemo(() => {
     if (!hits) return [];
-    return hits.filter(h => h.department === 'Engineering').sort((a, b) => b.likes - a.likes);
+    const byDept = new Map<string, Hit[]>();
+    for (const h of hits) {
+      if (!h.department) continue;
+      const existing = byDept.get(h.department) ?? [];
+      existing.push(h);
+      byDept.set(h.department, existing);
+    }
+    return [...byDept.entries()]
+      .map(([dept, deptHits]) => ({ department: dept, hits: deptHits.sort((a, b) => b.likes - a.likes) }))
+      .sort((a, b) => b.hits.length - a.hits.length);
   }, [hits]);
 
   // Featured cards — top employee hit and top external hit
@@ -213,10 +223,10 @@ export default function HitsPage() {
             </CarouselRow>
           )}
 
-          {/* Engineering Department */}
-          {engineeringHits.length > 0 && (
-            <CarouselRow title="Engineering Department">
-              {engineeringHits.map(h => (
+          {/* Per-department carousels */}
+          {departmentGroups.map(({ department, hits: deptHits }) => (
+            <CarouselRow key={department} title={`${department} Department`}>
+              {deptHits.map(h => (
                 <HitCard
                   key={h.id}
                   avatarUrl={h.authorAvatar}
@@ -227,7 +237,7 @@ export default function HitsPage() {
                 />
               ))}
             </CarouselRow>
-          )}
+          ))}
 
           {totalHits === 0 && (
             <div className="text-center py-16 text-neutral-400">

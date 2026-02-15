@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "Department" ADD VALUE 'CONTENT_ENGINEERING';

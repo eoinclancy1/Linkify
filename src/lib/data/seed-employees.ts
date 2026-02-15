@@ -88,6 +88,9 @@ const jobTitlesByDepartment: Record<Employee['department'], string[]> = {
   Data: [
     'Data Analyst', 'Analytics Engineer', 'BI Developer',
   ],
+  'Content Engineering': [
+    'Growth Advisor', 'Content Consultant', 'Fractional CMO',
+  ],
   Other: [
     'Office Manager', 'Executive Assistant', 'General Manager',
   ],

@@ -54,6 +54,13 @@ export interface MappedProfile {
 function inferDepartment(headline: string): Department {
   const h = headline.toLowerCase();
 
+  // CONTENT_ENGINEERING — advisors, consultants, fractional roles
+  // Only match if they don't also hold a senior internal title (VP, Head, Director, etc.)
+  if (/\b(advisor|consultant|fractional)\b/i.test(h) &&
+      !/\b(vp|vice president|head of|director|manager|lead)\b/i.test(h)) {
+    return 'CONTENT_ENGINEERING';
+  }
+
   // LEADERSHIP — match founders, C-suite, board members first
   // "chief of staff" is OPERATIONS, not LEADERSHIP, so exclude it here
   if (/\b(ceo|coo|cfo|cto|cpo|cmo|co-?founder|founder|board\b)/i.test(h)) {

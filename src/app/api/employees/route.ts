@@ -15,7 +15,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(employee);
   }
 
-  const employees = await provider.getEmployees();
+  const department = searchParams.get('department');
+  let employees = await provider.getEmployees();
+
+  if (department) {
+    employees = employees.filter(e => e.department === department);
+  } else {
+    // By default, exclude Content Engineering (advisors) from the main list
+    employees = employees.filter(e => e.department !== 'Content Engineering');
+  }
+
   return NextResponse.json(employees);
 }
 

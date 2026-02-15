@@ -72,14 +72,14 @@ npx prisma studio            # visual DB browser
 | `CompanyMention` | Posts that mention the company |
 | `EngagementSnapshot` | Point-in-time engagement metrics for trend tracking |
 | `PostingActivity` | Daily post counts per employee |
-| `ScrapeRun` | Scrape job history with status and stats |
-| `AppConfig` | Singleton row for company URL, name, scrape settings |
+| `ScrapeRun` | Scrape job history with status, stats, and `costUsd` per run |
+| `AppConfig` | Singleton row for company URL, name, scrape settings, `vercelMonthlyCostUsd` |
 
 ### Enums (4)
 
 | Enum | Values |
 |------|--------|
-| `Department` | ENGINEERING, MARKETING, SALES, PRODUCT, DESIGN, OTHER |
+| `Department` | ENGINEERING, MARKETING, SALES, PRODUCT, DESIGN, LEADERSHIP, OPERATIONS, PEOPLE, PARTNERSHIPS, DATA, OTHER |
 | `PostType` | ORIGINAL, RESHARE, ARTICLE, POLL |
 | `ScrapeType` | EMPLOYEE_DISCOVERY, PROFILE_SCRAPE, POST_SCRAPE, ENGAGEMENT_UPDATE |
 | `ScrapeStatus` | PENDING, RUNNING, COMPLETED, FAILED, PARTIAL |
@@ -160,6 +160,8 @@ prisma/             Schema + migrations
 | `CRON_SECRET` | Random secret for cron auth |
 | `USE_MOCK_DATA` | `false` |
 | `NEXT_PUBLIC_APIFY_CONFIGURED` | `true` |
+| `NEON_API_KEY` | (Optional) Neon personal API key for `/usage` cost tracking |
+| `NEON_PROJECT_ID` | (Optional) Neon project ID for `/usage` cost tracking |
 
 ### Going Live (Mock → Real Data)
 
@@ -186,6 +188,7 @@ npx prisma studio    # visual DB browser
 ## UI Component Notes
 
 - Badge component variants: `green`, `blue`, `orange`, `red`, `neutral` (not `gray`)
-- Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts.
+- Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts. Links to `/usage` page.
+- Usage page (`/usage`) shows 30-day cost breakdown: Apify (from ScrapeRun.costUsd), Neon (from consumption API), Vercel (manual entry stored in AppConfig.vercelMonthlyCostUsd).
 - Theme colors: `linkify-green` (#1DB954), `background` (#121212), `surface` (#181818), `elevated` (#282828), `highlight` (#333333)
 - Next.js 16 uses `proxy.ts` instead of `middleware.ts` (deprecated but still works)

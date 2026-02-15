@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Home, Trophy, Users, Settings, Link as LinkIcon, X, Flame } from 'lucide-react';
+import { Home, Trophy, Users, Settings, Link as LinkIcon, X, Flame, FlaskConical } from 'lucide-react';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { href: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
   { href: '/hits', icon: Flame, label: 'All Time Hits' },
   { href: '/employees', icon: Users, label: 'Employees' },
+  { href: '/content-engineering', icon: FlaskConical, label: 'Content Engineering' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 

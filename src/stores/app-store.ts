@@ -11,6 +11,8 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   employeeTab: 'overview' | 'leaderboard' | 'posts';
   setEmployeeTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
+  contentEngTab: 'overview' | 'leaderboard' | 'posts';
+  setContentEngTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }
@@ -26,6 +28,8 @@ export const useAppStore = create<AppState>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   employeeTab: 'overview',
   setEmployeeTab: (tab) => set({ employeeTab: tab }),
+  contentEngTab: 'overview',
+  setContentEngTab: (tab) => set({ contentEngTab: tab }),
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 }));

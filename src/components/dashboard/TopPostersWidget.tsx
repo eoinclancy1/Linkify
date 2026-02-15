@@ -29,12 +29,12 @@ export default function TopPostersWidget({ employees }: TopPostersWidgetProps) {
         </Link>
       </div>
 
-      <div className="flex overflow-x-auto gap-4 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="grid grid-cols-4 gap-4">
         {employees.map((employee) => (
           <Link
             key={employee.id}
             href={`/employees/${employee.id}`}
-            className="flex-shrink-0 flex flex-col items-center gap-2 p-4 rounded-lg bg-elevated hover:bg-highlight transition-colors min-w-[140px]"
+            className="flex flex-col items-center gap-2 p-4 rounded-lg bg-elevated hover:bg-highlight transition-colors min-w-0"
           >
             <Avatar src={employee.avatarUrl} name={employee.fullName} size="lg" />
             <p className="text-sm font-medium text-white text-center truncate w-full">

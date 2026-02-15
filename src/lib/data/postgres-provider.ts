@@ -17,6 +17,7 @@ const DEPARTMENT_MAP: Record<Department, Employee['department']> = {
   PEOPLE: 'People',
   PARTNERSHIPS: 'Partnerships',
   DATA: 'Data',
+  CONTENT_ENGINEERING: 'Content Engineering',
   OTHER: 'Other',
 };
 
