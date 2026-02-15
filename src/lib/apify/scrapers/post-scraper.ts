@@ -24,13 +24,15 @@ interface ApifyPostOutput {
   createdAt?: string;
   likes?: number;
   numLikes?: number;
-  comments?: number;
+  comments?: number | unknown[];
   numComments?: number;
   shares?: number;
   numShares?: number;
   reposts?: number;
+  repostCount?: number;
   type?: string;
   postType?: string;
+  isRepost?: boolean;
   media?: unknown[];
   images?: string[];
   hashtags?: string[];
@@ -88,10 +90,40 @@ export function detectCompanyMention(text: string, companyUrl: string): boolean 
   return false;
 }
 
+/** Parse a count field that may be a number or an array of objects */
+function toCount(value: number | unknown[] | undefined, fallback?: number): number {
+  if (typeof value === 'number') return value;
+  if (Array.isArray(value)) return value.length;
+  return fallback ?? 0;
+}
+
+/** Parse a date that may be an ISO string, unix timestamp (ms or s), or other format */
+function parseDate(raw: string | number | undefined): Date {
+  if (!raw) return new Date();
+  if (typeof raw === 'number') {
+    // Unix timestamp: if < 1e12, it's in seconds; otherwise milliseconds
+    return new Date(raw < 1e12 ? raw * 1000 : raw);
+  }
+  // Try parsing as-is
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) return d;
+  // Fallback: current date
+  return new Date();
+}
+
+function isRepost(post: ApifyPostOutput): boolean {
+  if (post.isRepost === true) return true;
+  const type = (post.type || post.postType || '').toLowerCase();
+  return type.includes('reshare') || type.includes('repost');
+}
+
 export function mapPostToDatabase(
   post: ApifyPostOutput,
   companyUrl: string,
 ): MappedPost | null {
+  // Exclude reposts
+  if (isRepost(post)) return null;
+
   const linkedinPostId = post.postId || post.urn || post.id || '';
   const linkedinUrl = post.url || post.postUrl || '';
 
@@ -99,11 +131,11 @@ export function mapPostToDatabase(
 
   const textContent = post.text || post.textContent || post.content || '';
   const likes = post.likes ?? post.numLikes ?? 0;
-  const comments = post.comments ?? post.numComments ?? 0;
-  const shares = post.shares ?? post.numShares ?? post.reposts ?? 0;
+  const comments = toCount(post.comments, post.numComments);
+  const shares = post.shares ?? post.numShares ?? post.repostCount ?? post.reposts ?? 0;
 
   const publishedAtRaw = post.publishedAt || post.postedAt || post.date || post.createdAt;
-  const publishedAt = publishedAtRaw ? new Date(publishedAtRaw) : new Date();
+  const publishedAt = parseDate(publishedAtRaw);
 
   const mediaUrls = post.images || (post.media as string[] | undefined) || null;
   const hashtags = post.hashtags || extractHashtags(textContent);
