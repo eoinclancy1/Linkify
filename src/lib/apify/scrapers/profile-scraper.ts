@@ -1,7 +1,7 @@
 import { runActor, sleep, type ActorRunResult } from '@/lib/apify/client';
 import type { Department } from '@prisma/client';
 
-const ACTOR_ID = 'curious_coder/linkedin-profile-scraper';
+const ACTOR_ID = 'harvestapi/linkedin-profile-scraper';
 const BATCH_SIZE = 100;
 const BATCH_DELAY_MS = 10_000;
 
