@@ -21,12 +21,19 @@ interface ApifyProfileOutput {
   summary?: string;
   jobTitle?: string;
   title?: string;
-  profilePicture?: string;
-  profileImageUrl?: string;
-  avatarUrl?: string;
+  profilePicture?: string | { url?: string };
+  profileImageUrl?: string | { url?: string };
+  avatarUrl?: string | { url?: string };
   experience?: unknown[];
   education?: unknown[];
   skills?: unknown[] | string[];
+}
+
+/** Extract a plain URL string from a field that may be a string or { url: "..." } object */
+function extractUrl(field: string | { url?: string } | undefined): string {
+  if (!field) return '';
+  if (typeof field === 'string') return field;
+  return field.url ?? '';
 }
 
 export interface MappedProfile {
@@ -94,7 +101,7 @@ export function mapProfileToEmployee(profile: ApifyProfileOutput): MappedProfile
     about: profile.about || profile.summary || '',
     jobTitle,
     department: inferDepartment(headline),
-    avatarUrl: profile.profilePicture || profile.profileImageUrl || profile.avatarUrl || '',
+    avatarUrl: extractUrl(profile.profilePicture) || extractUrl(profile.profileImageUrl) || extractUrl(profile.avatarUrl),
     experience: profile.experience ?? null,
     education: profile.education ?? null,
     skills: profile.skills ?? null,
