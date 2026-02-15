@@ -28,6 +28,8 @@ npm run dev                        # http://localhost:3000
 | `CRON_SECRET` | Bearer token to authenticate the `/api/cron/scrape` endpoint. |
 | `USE_MOCK_DATA` | `"true"` = use mock data (no DB needed). `"false"` = use PostgreSQL. |
 | `NEXT_PUBLIC_APIFY_CONFIGURED` | `"true"` enables scrape controls in the settings UI. |
+| `NEON_API_KEY` | (Optional) Neon personal API key for usage cost tracking on `/usage`. |
+| `NEON_PROJECT_ID` | (Optional) Neon project ID (from Project Settings, not extractable from DATABASE_URL). |
 
 ## Data Provider System
 
@@ -127,6 +129,7 @@ The scrape trigger route uses Next.js `after()` (from `next/server`) with `maxDu
 | `/api/scrape/trigger` | POST | Start a scrape job (`full`, `discovery`, `profiles`, or `posts`). Uses `after()` + `maxDuration: 300` for Vercel background execution. |
 | `/api/scrape/status` | GET | Scrape run history and current status |
 | `/api/cron/scrape` | GET | Cron-triggered full scrape (requires `CRON_SECRET`) |
+| `/api/usage` | GET | Aggregated 30-day costs for Apify (from ScrapeRun), Neon (API), and Vercel (manual). |
 
 ## Key Directories
 

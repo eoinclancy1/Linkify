@@ -4,7 +4,8 @@ import { useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
+import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare, DollarSign, ChevronRight } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -146,6 +147,22 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      {/* Usage & Costs Link */}
+      <Link href="/usage">
+        <Card variant="interactive">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-linkify-green/10 rounded-lg">
+              <DollarSign className="w-5 h-5 text-linkify-green" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold">Usage & Costs</h3>
+              <p className="text-sm text-neutral-400">View Apify, Neon, and Vercel spend for the last 30 days</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-neutral-400" />
+          </div>
+        </Card>
+      </Link>
 
       {/* Company LinkedIn Page */}
       <Card>

@@ -167,11 +167,12 @@ model ScrapeRun {
 }
 
 model AppConfig {
-  id                 String  @id @default("singleton")
-  companyLinkedinUrl String  @default("")
-  companyName        String  @default("")
-  scrapeEnabled      Boolean @default(true)
-  scrapeHistoryDays  Int     @default(30)
+  id                   String  @id @default("singleton")
+  companyLinkedinUrl   String  @default("")
+  companyName          String  @default("")
+  scrapeEnabled        Boolean @default(true)
+  scrapeHistoryDays    Int     @default(30)
+  vercelMonthlyCostUsd Float   @default(0)
 
   updatedAt DateTime @updatedAt
 }
