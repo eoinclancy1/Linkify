@@ -260,6 +260,8 @@ async function upsertPost(authorId: string, post: MappedPost): Promise<void> {
       where: { linkedinPostId: post.linkedinPostId },
       data: {
         textContent: post.textContent,
+        publishedAt: post.publishedAt,
+        linkedinUrl: post.linkedinUrl,
         likes: post.likes,
         comments: post.comments,
         shares: post.shares,
