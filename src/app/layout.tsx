@@ -37,19 +37,7 @@ export default function RootLayout({
             </div>
           </main>
         </div>
-        <NowPlayingBar
-          recentActivity={[
-            "Sarah Chen posted about AI trends",
-            "Mike Johnson mentioned @CompanyName in a new article",
-            "Emily Davis hit a 12-week posting streak!",
-            "Alex Rivera's post reached 500+ likes",
-            "Team engagement up 23% this week",
-          ]}
-          stats={[
-            { label: "Posts today", value: "8" },
-            { label: "Active streaks", value: "24" },
-          ]}
-        />
+        <NowPlayingBar />
       </body>
     </html>
   );
