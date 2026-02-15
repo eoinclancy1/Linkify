@@ -1,4 +1,6 @@
 import type { Employee, Post, PostingStreak, PostingActivity, CompanyMention } from '@/types';
+import { MockDataProvider } from './mock-provider';
+import { PostgresDataProvider } from './postgres-provider';
 
 export interface DashboardStats {
   totalPosts30d: number;
@@ -21,10 +23,8 @@ export interface DataProvider {
 
 export function createDataProvider(): DataProvider {
   if (process.env.USE_MOCK_DATA === 'true' || !process.env.DATABASE_URL) {
-    const { MockDataProvider } = require('./mock-provider');
     return new MockDataProvider();
   }
-  const { PostgresDataProvider } = require('./postgres-provider');
   return new PostgresDataProvider();
 }
 
