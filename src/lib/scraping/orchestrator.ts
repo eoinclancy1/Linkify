@@ -191,11 +191,19 @@ export class ScrapeOrchestrator {
 
   async searchExternalMentions(): Promise<{ created: number; updated: number }> {
     const config = await getConfig();
-    if (!config.companyName) throw new Error('Company name not configured');
+
+    // Derive company name from URL slug if not explicitly set
+    const companyName = config.companyName
+      || config.companyLinkedinUrl.match(/company\/([^/?]+)/)?.[1]?.replace(/-/g, ' ')
+      || '';
 
     const run = await createScrapeRun('MENTION_SEARCH');
     try {
-      const result = await searchMentionPosts(config.companyName, config.companyLinkedinUrl);
+      if (!companyName) {
+        throw new Error('Company name not configured — set a company LinkedIn URL in Settings');
+      }
+
+      const result = await searchMentionPosts(companyName, config.companyLinkedinUrl);
 
       let created = 0;
       let updated = 0;
