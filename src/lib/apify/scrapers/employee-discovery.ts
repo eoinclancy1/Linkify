@@ -4,6 +4,7 @@ const ACTOR_ID = 'harvestapi/linkedin-company-employees';
 
 interface EmployeeDiscoveryInput {
   companies: string[];
+  takePages?: number;
 }
 
 interface EmployeeDiscoveryOutput {
@@ -27,7 +28,7 @@ function normalizeLinkedinUrl(url: string): string {
 export async function discoverEmployees(companyUrl: string): Promise<DiscoveryResult> {
   const result: ActorRunResult<EmployeeDiscoveryOutput> = await runActor(
     ACTOR_ID,
-    { companies: [companyUrl] } satisfies EmployeeDiscoveryInput,
+    { companies: [companyUrl], takePages: 100 } satisfies EmployeeDiscoveryInput,
   );
 
   const profileUrls = result.items
