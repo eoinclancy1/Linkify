@@ -72,6 +72,10 @@ const jobTitlesByDepartment: Record<Employee['department'], string[]> = {
     'UX Designer', 'UI Designer', 'Senior Product Designer',
     'Design Lead', 'UX Researcher', 'Visual Designer',
   ],
+  Other: [
+    'Operations Manager', 'Office Manager', 'Executive Assistant',
+    'HR Manager', 'Finance Lead', 'General Manager',
+  ],
 };
 
 function shuffleArray<T>(arr: T[]): T[] {

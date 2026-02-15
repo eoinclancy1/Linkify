@@ -12,7 +12,7 @@ const DEPARTMENT_MAP: Record<Department, Employee['department']> = {
   SALES: 'Sales',
   PRODUCT: 'Product',
   DESIGN: 'Design',
-  OTHER: 'Design', // Fallback; frontend only knows these 5
+  OTHER: 'Other',
 };
 
 const POST_TYPE_MAP: Record<string, PostType> = {
