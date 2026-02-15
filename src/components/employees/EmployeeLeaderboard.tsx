@@ -14,9 +14,10 @@ export interface LeaderboardEntry {
   weeklyPoints: number;
   totalPoints: number;
   points30d: number;
+  points7d: number;
 }
 
-type SortColumn = 'streak' | 'weekly' | 'total';
+type SortColumn = 'streak' | 'weekly' | '7d' | 'total';
 type SortDirection = 'asc' | 'desc';
 
 interface EmployeeLeaderboardProps {
@@ -49,6 +50,10 @@ export default function EmployeeLeaderboard({ entries, mentionMultiplier = 2.0 }
         case 'weekly':
           aVal = a.weeklyPoints;
           bVal = b.weeklyPoints;
+          break;
+        case '7d':
+          aVal = a.points7d;
+          bVal = b.points7d;
           break;
         case 'total':
           aVal = a.totalPoints;
@@ -173,6 +178,12 @@ export default function EmployeeLeaderboard({ entries, mentionMultiplier = 2.0 }
           This Week<SortIcon column="weekly" />
         </button>
         <button
+          onClick={() => handleSort('7d')}
+          className={`flex-shrink-0 w-24 text-right cursor-pointer hover:text-white transition-colors ${sortColumn === '7d' ? 'text-white' : ''}`}
+        >
+          Last 7d<SortIcon column="7d" />
+        </button>
+        <button
           onClick={() => handleSort('total')}
           className={`flex-shrink-0 w-24 text-right cursor-pointer hover:text-white transition-colors ${sortColumn === 'total' ? 'text-white' : ''}`}
         >
@@ -192,6 +203,7 @@ export default function EmployeeLeaderboard({ entries, mentionMultiplier = 2.0 }
             daysSinceLastPost={entry.daysSinceLastPost}
             consecutiveDays={entry.consecutiveDays}
             weeklyPoints={entry.weeklyPoints}
+            points7d={entry.points7d}
             totalPoints={entry.totalPoints}
           />
         ))}

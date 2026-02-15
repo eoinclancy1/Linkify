@@ -127,13 +127,26 @@ export default function ContentEngineeringPage() {
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Build start date map for filtering pre-employment posts
+    const startDateMap: Record<string, Date | null> = {};
+    for (const e of employees) {
+      startDateMap[e.id] = e.companyStartDate ? new Date(e.companyStartDate) : null;
+    }
+
+    // Group posts by employee, filtering out posts before company start date
     const postsByEmployee: Record<string, AnyPost[]> = {};
     for (const e of employees) postsByEmployee[e.id] = [];
     for (const p of allPosts) {
-      if (postsByEmployee[p.authorId]) postsByEmployee[p.authorId].push(p);
+      if (!postsByEmployee[p.authorId]) continue;
+      const startDate = startDateMap[p.authorId];
+      if (startDate && new Date(p.publishedAt) < startDate) continue;
+      postsByEmployee[p.authorId].push(p);
     }
 
     function calcPoints(post: AnyPost): number {
@@ -178,6 +191,9 @@ export default function ContentEngineeringPage() {
       const weeklyPoints = empPosts
         .filter((p: AnyPost) => new Date(p.publishedAt) >= startOfWeek)
         .reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
+      const points7d = empPosts
+        .filter((p: AnyPost) => new Date(p.publishedAt) >= sevenDaysAgo)
+        .reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
       const points30d = empPosts
         .filter((p: AnyPost) => new Date(p.publishedAt) >= thirtyDaysAgo)
         .reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
@@ -199,6 +215,7 @@ export default function ContentEngineeringPage() {
         weeklyPoints,
         totalPoints,
         points30d,
+        points7d,
       };
     });
 

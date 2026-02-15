@@ -51,6 +51,64 @@ export interface MappedProfile {
   skills: unknown[] | null;
 }
 
+const MONTH_MAP: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+/**
+ * Extract the employee's start date at the current company from their experience data.
+ * Matches on companyLinkedinUrl slug or falls back to current role (endDate.text === "Present").
+ */
+export function extractCompanyStartDate(
+  experience: unknown[] | null,
+  companyUrl: string,
+): Date | null {
+  if (!experience || !Array.isArray(experience) || experience.length === 0) return null;
+
+  // Extract slug from company URL (e.g. "airopshq" from ".../company/airopshq/")
+  const slugMatch = companyUrl.match(/company\/([^/?]+)/);
+  const companySlug = slugMatch?.[1]?.toLowerCase();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type ExpEntry = any;
+
+  // First pass: match by company LinkedIn URL slug
+  if (companySlug) {
+    for (const entry of experience as ExpEntry[]) {
+      const entryUrl = (entry.companyLinkedinUrl || '').toLowerCase();
+      if (entryUrl.includes(companySlug)) {
+        const date = parseStartDate(entry.startDate);
+        if (date) return date;
+      }
+    }
+  }
+
+  // Second pass: fallback to current role (endDate.text === "Present")
+  for (const entry of experience as ExpEntry[]) {
+    const endText = entry.endDate?.text || entry.endDate || '';
+    if (typeof endText === 'string' && endText.toLowerCase().includes('present')) {
+      const date = parseStartDate(entry.startDate);
+      if (date) return date;
+    }
+  }
+
+  return null;
+}
+
+function parseStartDate(startDate: unknown): Date | null {
+  if (!startDate || typeof startDate !== 'object') return null;
+  const sd = startDate as { month?: string; year?: number; text?: string };
+
+  const year = sd.year;
+  if (!year || typeof year !== 'number') return null;
+
+  const monthStr = (sd.month || '').toLowerCase().slice(0, 3);
+  const month = MONTH_MAP[monthStr] ?? 0; // Default to January if month not parseable
+
+  return new Date(year, month, 1);
+}
+
 function inferDepartment(headline: string): Department {
   const h = headline.toLowerCase();
 

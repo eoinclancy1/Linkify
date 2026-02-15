@@ -67,7 +67,7 @@ npx prisma studio            # visual DB browser
 
 | Model | Purpose |
 |-------|---------|
-| `Employee` | LinkedIn profile data, department, active status. `isExternalAuthor` flag for non-employee authors discovered via mention search |
+| `Employee` | LinkedIn profile data, department, active status. `isExternalAuthor` flag for non-employee authors discovered via mention search. `companyStartDate` extracted from experience data to filter pre-employment posts from scoring. |
 | `Post` | Individual LinkedIn posts with engagement metrics |
 | `CompanyMention` | Posts that mention the company |
 | `EngagementSnapshot` | Point-in-time engagement metrics for trend tracking |
@@ -106,7 +106,7 @@ The scrapers handle various Apify data inconsistencies:
   - **Post ID**: Uses `shareUrn` (e.g. `urn:li:ugcPost:...`) or `id` (numeric string). `entityId` is the activity ID.
   - **Text**: Uses `content` field (not `text` or `textContent`).
   - `toCount()` handles engagement fields that may be arrays instead of numbers. `isRepost()` checks both `isRepost` boolean and post type to exclude reshares.
-- **Profile scraper**: `extractUrl()` handles `avatarUrl` being either a string or an object `{ url, sizes }`.
+- **Profile scraper**: `extractUrl()` handles `avatarUrl` being either a string or an object `{ url, sizes }`. `extractCompanyStartDate()` parses the employee's start date at the current company from their experience JSON (matches on `companyLinkedinUrl` slug, falls back to `endDate.text === "Present"`). Called in the orchestrator during `scrapeAllProfiles()` and stored as `Employee.companyStartDate`.
 - **Employee discovery**: Uses `takePages: 100` to prevent the Apify actor from returning empty results.
 - **Mention search**: Uses `config.companyName` (currently "airops") as the search query, NOT derived from the LinkedIn URL slug (which is "airopshq"). The company name is stored in `AppConfig.companyName` and shown as a read-only field in Settings.
 - **Stuck run auto-expiry**: The orchestrator auto-expires runs stuck in RUNNING status.
@@ -192,6 +192,7 @@ npx prisma studio    # visual DB browser
 - Badge component variants: `green`, `blue`, `orange`, `red`, `neutral` (not `gray`)
 - Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts, Search Mentions. Includes scoring config (mention bonus multiplier), read-only mention search query field, and links to `/usage` page.
 - "What's Trending" page (`/leaderboard`) shows posts mentioning the company — from both employees and external authors discovered via mention search.
+- **Leaderboard scoring** (both `/employees` and `/content-engineering`): Posts published before an employee's `companyStartDate` are excluded from point calculations, streak counts, and all scoring metrics. Employees without a `companyStartDate` have all posts counted (no filter applied).
 - Usage page (`/usage`) shows 30-day cost breakdown: Apify (from ScrapeRun.costUsd), Neon (from consumption API), Vercel (manual entry stored in AppConfig.vercelMonthlyCostUsd).
 - Employee detail page (`/employees/[employeeId]`) layout order: profile hero + 4 stat cards → two hero post cards ("Latest Release" = most recent post, "What's Trending" = highest engagement in last 30 days) → posting activity heatmap + weekly frequency chart → recent posts list. `EmployeeDetailPanel` only renders the profile and stats; post data logic lives in the page.
 - Theme colors: `linkify-green` (#1DB954), `background` (#121212), `surface` (#181818), `elevated` (#282828), `highlight` (#333333)

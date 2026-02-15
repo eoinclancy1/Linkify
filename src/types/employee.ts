@@ -7,5 +7,6 @@ export interface Employee {
   department: 'Engineering' | 'Marketing' | 'Sales' | 'Product' | 'Design' | 'Leadership' | 'Operations' | 'People' | 'Partnerships' | 'Data' | 'Content Engineering' | 'Other';
   linkedinProfileUrl: string;
   avatarUrl: string;
+  companyStartDate?: string;
   isActive: boolean;
 }

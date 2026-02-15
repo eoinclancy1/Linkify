@@ -38,6 +38,7 @@ function mapEmployee(e: PrismaEmployee): Employee {
     department: DEPARTMENT_MAP[e.department] ?? 'Other',
     linkedinProfileUrl: e.linkedinUrl,
     avatarUrl: e.avatarUrl,
+    companyStartDate: e.companyStartDate?.toISOString() ?? undefined,
     isActive: e.isActive,
   };
 }

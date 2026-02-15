@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { discoverEmployees } from '@/lib/apify/scrapers/employee-discovery';
-import { scrapeProfiles, type MappedProfile } from '@/lib/apify/scrapers/profile-scraper';
+import { scrapeProfiles, extractCompanyStartDate, type MappedProfile } from '@/lib/apify/scrapers/profile-scraper';
 import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
 import { searchMentionPosts } from '@/lib/apify/scrapers/mention-search';
 import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
@@ -92,6 +92,7 @@ export class ScrapeOrchestrator {
   }
 
   async scrapeAllProfiles(): Promise<{ updated: number }> {
+    const config = await getConfig();
     const run = await createScrapeRun('PROFILE_SCRAPE');
     try {
       const employees = await prisma.employee.findMany({
@@ -109,6 +110,11 @@ export class ScrapeOrchestrator {
 
       let updated = 0;
       for (const profile of result.profiles) {
+        const companyStartDate = extractCompanyStartDate(
+          profile.experience,
+          config.companyLinkedinUrl,
+        );
+
         await prisma.employee.update({
           where: { linkedinUrl: profile.linkedinUrl },
           data: {
@@ -123,6 +129,7 @@ export class ScrapeOrchestrator {
             experience: (profile.experience as Prisma.InputJsonValue) ?? undefined,
             education: (profile.education as Prisma.InputJsonValue) ?? undefined,
             skills: (profile.skills as Prisma.InputJsonValue) ?? undefined,
+            companyStartDate,
             lastScrapedAt: new Date(),
           },
         });

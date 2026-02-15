@@ -117,6 +117,12 @@ export const seedEmployees: Employee[] = Array.from({ length: 40 }, (_, i) => {
   const jobTitle = titles[Math.floor(rand() * titles.length)];
   const slug = `${firstName.toLowerCase()}-${lastName.toLowerCase().replace(/'/g, '')}`;
 
+  // Deterministic start date: between 6 and 36 months ago
+  const monthsAgo = 6 + Math.floor(rand() * 30);
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - monthsAgo);
+  startDate.setDate(1);
+
   return {
     id: `emp-${String(i + 1).padStart(3, '0')}`,
     firstName,
@@ -126,6 +132,7 @@ export const seedEmployees: Employee[] = Array.from({ length: 40 }, (_, i) => {
     department,
     linkedinProfileUrl: `https://linkedin.com/in/${slug}`,
     avatarUrl: `https://i.pravatar.cc/300?u=${slug}`,
+    companyStartDate: startDate.toISOString(),
     isActive: rand() > 0.05, // ~95% active
   };
 });

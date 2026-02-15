@@ -65,6 +65,7 @@ model Employee {
   isActive        Boolean    @default(true)
   isManuallyAdded Boolean    @default(false)
   isExternalAuthor Boolean   @default(false)
+  companyStartDate DateTime?
   lastScrapedAt   DateTime?
 
   createdAt DateTime @default(now())

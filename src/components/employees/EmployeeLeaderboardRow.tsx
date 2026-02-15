@@ -14,6 +14,7 @@ interface EmployeeLeaderboardRowProps {
   daysSinceLastPost: number | null;
   consecutiveDays: number;
   weeklyPoints: number;
+  points7d: number;
   totalPoints: number;
 }
 
@@ -37,6 +38,7 @@ export default function EmployeeLeaderboardRow({
   daysSinceLastPost,
   consecutiveDays,
   weeklyPoints,
+  points7d,
   totalPoints,
 }: EmployeeLeaderboardRowProps) {
   return (
@@ -71,6 +73,11 @@ export default function EmployeeLeaderboardRow({
       {/* Weekly Pts */}
       <div className="flex-shrink-0 w-24 text-right">
         <p className="text-sm font-semibold text-white">{weeklyPoints.toLocaleString()}</p>
+      </div>
+
+      {/* Last 7d Pts */}
+      <div className="flex-shrink-0 w-24 text-right">
+        <p className="text-sm font-semibold text-white">{points7d.toLocaleString()}</p>
       </div>
 
       {/* Total Pts */}
