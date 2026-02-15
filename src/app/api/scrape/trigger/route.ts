@@ -11,9 +11,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type } = body as { type?: string };
 
-    if (!type || !['full', 'discovery', 'profiles', 'posts'].includes(type)) {
+    if (!type || !['full', 'discovery', 'profiles', 'posts', 'mentions'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be one of: full, discovery, profiles, posts' },
+        { error: 'Invalid type. Must be one of: full, discovery, profiles, posts, mentions' },
         { status: 400 },
       );
     }
@@ -37,6 +37,10 @@ export async function POST(request: NextRequest) {
             await orchestrator.scrapeAllPosts();
             await orchestrator.updateCompanyMentions();
             await orchestrator.refreshPostingActivities();
+            break;
+          case 'mentions':
+            await orchestrator.searchExternalMentions();
+            await orchestrator.updateCompanyMentions();
             break;
         }
       } catch (err) {

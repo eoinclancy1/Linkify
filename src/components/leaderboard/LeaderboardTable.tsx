@@ -23,7 +23,7 @@ export default function LeaderboardTable({ mentions }: LeaderboardTableProps) {
     return (
       <div className="bg-surface rounded-lg p-12 text-center">
         <p className="text-neutral-400 text-sm">
-          No mentions found. Check back later for leaderboard updates.
+          No trending posts found. Check back later for updates.
         </p>
       </div>
     );

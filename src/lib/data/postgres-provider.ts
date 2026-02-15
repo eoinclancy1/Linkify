@@ -65,7 +65,7 @@ function mapPost(p: PrismaPost): Post {
 export class PostgresDataProvider implements DataProvider {
   async getEmployees(): Promise<Employee[]> {
     const employees = await prisma.employee.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isExternalAuthor: false },
       orderBy: { fullName: 'asc' },
     });
     return employees.map(mapEmployee);
@@ -144,7 +144,7 @@ export class PostgresDataProvider implements DataProvider {
 
   async getAllStreaks(): Promise<PostingStreak[]> {
     const employees = await prisma.employee.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isExternalAuthor: false },
       select: { id: true },
     });
 

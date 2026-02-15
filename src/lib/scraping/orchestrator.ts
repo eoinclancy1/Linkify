@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { discoverEmployees } from '@/lib/apify/scrapers/employee-discovery';
 import { scrapeProfiles, type MappedProfile } from '@/lib/apify/scrapers/profile-scraper';
 import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
+import { searchMentionPosts } from '@/lib/apify/scrapers/mention-search';
 import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
 
 async function getConfig() {
@@ -44,6 +45,7 @@ export class ScrapeOrchestrator {
     await this.discoverNewEmployees();
     await this.scrapeAllProfiles();
     await this.scrapeAllPosts();
+    await this.searchExternalMentions();
     await this.updateCompanyMentions();
     await this.refreshPostingActivities();
   }
@@ -173,6 +175,122 @@ export class ScrapeOrchestrator {
 
       await completeScrapeRun(run.id, 'COMPLETED', {
         itemsProcessed: employees.length,
+        itemsCreated: created,
+        itemsUpdated: updated,
+        costUsd: result.costUsd,
+      });
+
+      return { created, updated };
+    } catch (error) {
+      await completeScrapeRun(run.id, 'FAILED', {
+        errors: { message: error instanceof Error ? error.message : String(error) },
+      });
+      throw error;
+    }
+  }
+
+  async searchExternalMentions(): Promise<{ created: number; updated: number }> {
+    const config = await getConfig();
+    if (!config.companyName) throw new Error('Company name not configured');
+
+    const run = await createScrapeRun('MENTION_SEARCH');
+    try {
+      const result = await searchMentionPosts(config.companyName, config.companyLinkedinUrl);
+
+      let created = 0;
+      let updated = 0;
+
+      for (const post of result.posts) {
+        // Check if the author is already a tracked employee
+        let authorId: string | null = null;
+        let isExternal = true;
+
+        if (post.authorLinkedinUrl) {
+          const existingEmployee = await prisma.employee.findUnique({
+            where: { linkedinUrl: post.authorLinkedinUrl },
+          });
+
+          if (existingEmployee) {
+            // Author is a known employee — treat as employee post
+            authorId = existingEmployee.id;
+            isExternal = existingEmployee.isExternalAuthor;
+          }
+        }
+
+        // If no existing employee, create a lightweight external author record
+        if (!authorId && post.authorLinkedinUrl) {
+          const slug = post.authorPublicIdentifier || 'unknown';
+          const nameParts = post.authorName.split(' ');
+          const firstName = nameParts[0] ?? slug;
+          const lastName = nameParts.slice(1).join(' ');
+
+          const externalAuthor = await prisma.employee.create({
+            data: {
+              linkedinUrl: post.authorLinkedinUrl,
+              firstName,
+              lastName,
+              fullName: post.authorName,
+              headline: post.authorHeadline || null,
+              jobTitle: post.authorHeadline || '',
+              avatarUrl: post.authorAvatarUrl || '',
+              isActive: true,
+              isExternalAuthor: true,
+            },
+          });
+          authorId = externalAuthor.id;
+          isExternal = true;
+        }
+
+        if (!authorId) continue; // Skip posts with no identifiable author
+
+        // Upsert the post
+        const existing = await prisma.post.findUnique({
+          where: { linkedinPostId: post.linkedinPostId },
+        });
+
+        if (existing) {
+          await prisma.post.update({
+            where: { linkedinPostId: post.linkedinPostId },
+            data: {
+              textContent: post.textContent,
+              publishedAt: post.publishedAt,
+              linkedinUrl: post.linkedinUrl,
+              likes: post.likes,
+              comments: post.comments,
+              shares: post.shares,
+              engagementScore: post.engagementScore,
+              mentionsCompany: true,
+              isExternal,
+              mediaUrls: post.mediaUrls ?? undefined,
+              hashtags: post.hashtags ?? undefined,
+            },
+          });
+          updated++;
+        } else {
+          await prisma.post.create({
+            data: {
+              linkedinPostId: post.linkedinPostId,
+              linkedinUrl: post.linkedinUrl,
+              authorId,
+              type: post.type,
+              textContent: post.textContent,
+              publishedAt: post.publishedAt,
+              likes: post.likes,
+              comments: post.comments,
+              shares: post.shares,
+              engagementScore: post.engagementScore,
+              mentionsCompany: true,
+              isExternal,
+              mediaUrls: post.mediaUrls ?? undefined,
+              hashtags: post.hashtags ?? undefined,
+            },
+          });
+          created++;
+        }
+      }
+
+      await completeScrapeRun(run.id, 'COMPLETED', {
+        itemsProcessed: result.posts.length,
         itemsCreated: created,
         itemsUpdated: updated,
         costUsd: result.costUsd,

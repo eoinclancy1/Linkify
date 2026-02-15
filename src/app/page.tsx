@@ -114,7 +114,7 @@ export default function DashboardPage() {
           icon={FileText}
         />
         <StatCard
-          title="Company Mentions (30d)"
+          title="What's Trending (30d)"
           value={stats?.totalMentions30d ?? 0}
           icon={AtSign}
         />

@@ -207,9 +207,9 @@ export default function HitsPage() {
             </CarouselRow>
           )}
 
-          {/* Company */}
+          {/* Trending */}
           {companyHits.length > 0 && (
-            <CarouselRow title="Company">
+            <CarouselRow title="Trending">
               {companyHits.map(h => (
                 <HitCard
                   key={h.id}

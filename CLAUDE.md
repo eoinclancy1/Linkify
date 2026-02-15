@@ -67,7 +67,7 @@ npx prisma studio            # visual DB browser
 
 | Model | Purpose |
 |-------|---------|
-| `Employee` | LinkedIn profile data, department, active status |
+| `Employee` | LinkedIn profile data, department, active status. `isExternalAuthor` flag for non-employee authors discovered via mention search |
 | `Post` | Individual LinkedIn posts with engagement metrics |
 | `CompanyMention` | Posts that mention the company |
 | `EngagementSnapshot` | Point-in-time engagement metrics for trend tracking |
@@ -81,7 +81,7 @@ npx prisma studio            # visual DB browser
 |------|--------|
 | `Department` | ENGINEERING, MARKETING, SALES, PRODUCT, DESIGN, LEADERSHIP, OPERATIONS, PEOPLE, PARTNERSHIPS, DATA, OTHER |
 | `PostType` | ORIGINAL, RESHARE, ARTICLE, POLL |
-| `ScrapeType` | EMPLOYEE_DISCOVERY, PROFILE_SCRAPE, POST_SCRAPE, ENGAGEMENT_UPDATE |
+| `ScrapeType` | EMPLOYEE_DISCOVERY, PROFILE_SCRAPE, POST_SCRAPE, ENGAGEMENT_UPDATE, MENTION_SEARCH |
 | `ScrapeStatus` | PENDING, RUNNING, COMPLETED, FAILED, PARTIAL |
 
 ## Apify Scrapers
@@ -93,6 +93,7 @@ Three actors in `src/lib/apify/scrapers/` (all from `harvestapi` — free, no co
 | `harvestapi/linkedin-company-employees` | `employee-discovery.ts` | Discovers employee profile URLs from a company page. Uses `takePages: 100` to prevent empty results. |
 | `harvestapi/linkedin-profile-scraper` | `profile-scraper.ts` | Scrapes full profile details (bio, experience, skills). Handles `avatarUrl` as object `{ url, sizes }`. |
 | `harvestapi/linkedin-profile-posts` | `post-scraper.ts` | Scrapes posts with engagement metrics and company mention detection. Excludes reposts, handles array comments and invalid dates. 5s delay between profiles. |
+| `harvestapi/linkedin-post-search` | `mention-search.ts` | Searches LinkedIn posts by company name to find external mentions. Creates lightweight external author Employee records (`isExternalAuthor: true`). |
 
 ## Scraper Robustness
 
@@ -126,7 +127,7 @@ The scrape trigger route uses Next.js `after()` (from `next/server`) with `maxDu
 | `/api/activity` | GET | Posting activity for an employee |
 | `/api/mentions` | GET | Company mentions with date/sort filters |
 | `/api/config` | GET, POST | Read or update app configuration |
-| `/api/scrape/trigger` | POST | Start a scrape job (`full`, `discovery`, `profiles`, or `posts`). Uses `after()` + `maxDuration: 300` for Vercel background execution. |
+| `/api/scrape/trigger` | POST | Start a scrape job (`full`, `discovery`, `profiles`, `posts`, or `mentions`). Uses `after()` + `maxDuration: 300` for Vercel background execution. |
 | `/api/scrape/status` | GET | Scrape run history and current status |
 | `/api/cron/scrape` | GET | Cron-triggered full scrape (requires `CRON_SECRET`) |
 | `/api/usage` | GET | Aggregated 30-day costs for Apify (from ScrapeRun), Neon (API), and Vercel (manual). |
@@ -188,7 +189,9 @@ npx prisma studio    # visual DB browser
 ## UI Component Notes
 
 - Badge component variants: `green`, `blue`, `orange`, `red`, `neutral` (not `gray`)
-- Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts. Links to `/usage` page.
+- Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts, Search Mentions. Links to `/usage` page.
+- "What's Trending" page (`/leaderboard`) shows posts mentioning the company — from both employees and external authors discovered via mention search.
 - Usage page (`/usage`) shows 30-day cost breakdown: Apify (from ScrapeRun.costUsd), Neon (from consumption API), Vercel (manual entry stored in AppConfig.vercelMonthlyCostUsd).
+- Employee detail page (`/employees/[employeeId]`) layout order: profile hero + 4 stat cards → two hero post cards ("Latest Release" = most recent post, "What's Trending" = highest engagement in last 30 days) → posting activity heatmap + weekly frequency chart → recent posts list. `EmployeeDetailPanel` only renders the profile and stats; post data logic lives in the page.
 - Theme colors: `linkify-green` (#1DB954), `background` (#121212), `surface` (#181818), `elevated` (#282828), `highlight` (#333333)
 - Next.js 16 uses `proxy.ts` instead of `middleware.ts` (deprecated but still works)

@@ -42,6 +42,8 @@ export default function ContentEngineeringPage() {
     fetcher,
   );
   const { data: streaks } = useSWR('/api/streaks', fetcher);
+  const { data: config } = useSWR<{ mentionBonusMultiplier?: number }>('/api/config', fetcher);
+  const mentionMultiplier = config?.mentionBonusMultiplier ?? 2.0;
 
   // Build employee ID set for filtering posts
   const employeeIds = useMemo(() => {
@@ -135,7 +137,8 @@ export default function ContentEngineeringPage() {
     }
 
     function calcPoints(post: AnyPost): number {
-      return (post.engagement?.likes || 0) * 0.5 + (post.engagement?.comments || 0) * 2 + (post.engagement?.shares || 0) * 3;
+      const base = (post.engagement?.likes || 0) * 0.5 + (post.engagement?.comments || 0) * 2 + (post.engagement?.shares || 0) * 3;
+      return post.mentionsCompany ? base * mentionMultiplier : base;
     }
 
     function calcConsecutiveDays(posts: AnyPost[]): number {
@@ -207,7 +210,7 @@ export default function ContentEngineeringPage() {
     }
 
     return entries;
-  }, [employees, allPosts, searchQuery]);
+  }, [employees, allPosts, searchQuery, mentionMultiplier]);
 
   // ── All Posts tab data ──
   const allPostsData = useMemo((): PostEntry[] => {
@@ -330,7 +333,7 @@ export default function ContentEngineeringPage() {
             ))}
           </div>
         ) : (
-          <EmployeeLeaderboard entries={leaderboardData} />
+          <EmployeeLeaderboard entries={leaderboardData} mentionMultiplier={mentionMultiplier} />
         )
       )}
 

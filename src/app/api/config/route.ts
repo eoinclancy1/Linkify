@@ -22,12 +22,13 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { companyLinkedinUrl, companyName, scrapeEnabled, scrapeHistoryDays, vercelMonthlyCostUsd } = body as {
+    const { companyLinkedinUrl, companyName, scrapeEnabled, scrapeHistoryDays, vercelMonthlyCostUsd, mentionBonusMultiplier } = body as {
       companyLinkedinUrl?: string;
       companyName?: string;
       scrapeEnabled?: boolean;
       scrapeHistoryDays?: number;
       vercelMonthlyCostUsd?: number;
+      mentionBonusMultiplier?: number;
     };
 
     const data: Record<string, unknown> = {};
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     if (scrapeEnabled !== undefined) data.scrapeEnabled = scrapeEnabled;
     if (scrapeHistoryDays !== undefined) data.scrapeHistoryDays = scrapeHistoryDays;
     if (vercelMonthlyCostUsd !== undefined) data.vercelMonthlyCostUsd = vercelMonthlyCostUsd;
+    if (mentionBonusMultiplier !== undefined) data.mentionBonusMultiplier = mentionBonusMultiplier;
 
     const config = await prisma.appConfig.upsert({
       where: { id: 'singleton' },

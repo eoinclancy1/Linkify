@@ -21,9 +21,10 @@ type SortDirection = 'asc' | 'desc';
 
 interface EmployeeLeaderboardProps {
   entries: LeaderboardEntry[];
+  mentionMultiplier?: number;
 }
 
-export default function EmployeeLeaderboard({ entries }: EmployeeLeaderboardProps) {
+export default function EmployeeLeaderboard({ entries, mentionMultiplier = 2.0 }: EmployeeLeaderboardProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn>('total');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
@@ -137,13 +138,21 @@ export default function EmployeeLeaderboard({ entries }: EmployeeLeaderboardProp
       </div>
 
       {/* Scoring formula bar */}
-      <div className="sticky top-0 z-10 bg-elevated/95 backdrop-blur-sm rounded-lg px-4 py-2.5 flex items-center gap-4 text-xs text-neutral-400">
+      <div className="sticky top-0 z-10 bg-elevated/95 backdrop-blur-sm rounded-lg px-4 py-2.5 flex items-center gap-4 text-xs text-neutral-400 flex-wrap">
         <span className="font-semibold text-neutral-300 uppercase tracking-wider">Points =</span>
         <span className="inline-flex items-center gap-1"><Heart className="w-3 h-3 text-red-400" /> Reactions <span className="text-white font-semibold">&times;0.5</span></span>
         <span className="text-neutral-600">+</span>
         <span className="inline-flex items-center gap-1"><MessageCircle className="w-3 h-3 text-blue-400" /> Comments <span className="text-white font-semibold">&times;2</span></span>
         <span className="text-neutral-600">+</span>
         <span className="inline-flex items-center gap-1"><Share2 className="w-3 h-3 text-linkify-green" /> Shares <span className="text-white font-semibold">&times;3</span></span>
+        {mentionMultiplier > 1 && (
+          <>
+            <span className="text-neutral-600">&middot;</span>
+            <span className="inline-flex items-center gap-1 text-linkify-green">
+              <Trophy className="w-3 h-3" /> <span className="font-semibold">&times;{mentionMultiplier.toFixed(1)}</span> for company mentions
+            </span>
+          </>
+        )}
       </div>
 
       {/* Column headers */}

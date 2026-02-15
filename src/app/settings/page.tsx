@@ -5,7 +5,7 @@ import useSWR, { mutate } from 'swr';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Link from 'next/link';
-import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare, DollarSign, ChevronRight } from 'lucide-react';
+import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare, AtSign, DollarSign, ChevronRight, Trophy } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -16,6 +16,7 @@ interface AppConfig {
   companyName: string;
   scrapeEnabled: boolean;
   scrapeHistoryDays: number;
+  mentionBonusMultiplier: number;
 }
 
 interface ScrapeRun {
@@ -76,11 +77,21 @@ export default function SettingsPage() {
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [addError, setAddError] = useState('');
   const [scrapeLoading, setScrapeLoading] = useState<string | null>(null);
+  const [mentionMultiplier, setMentionMultiplier] = useState(2.0);
+  const [multiplierInit, setMultiplierInit] = useState(false);
+  const [multiplierSaving, setMultiplierSaving] = useState(false);
+  const [multiplierSaved, setMultiplierSaved] = useState(false);
 
   // Initialize company URL from config
   if (config && !companyUrlInit) {
     setCompanyUrl(config.companyLinkedinUrl || '');
     setCompanyUrlInit(true);
+  }
+
+  // Initialize multiplier from config
+  if (config && !multiplierInit) {
+    setMentionMultiplier(config.mentionBonusMultiplier ?? 2.0);
+    setMultiplierInit(true);
   }
 
   const handleSaveConfig = useCallback(async () => {
@@ -103,7 +114,22 @@ export default function SettingsPage() {
     }
   }, [companyUrl]);
 
-  const handleTriggerScrape = useCallback(async (type: 'full' | 'discovery' | 'profiles' | 'posts') => {
+  const handleSaveMultiplier = useCallback(async () => {
+    setMultiplierSaving(true);
+    try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mentionBonusMultiplier: mentionMultiplier }),
+      });
+      setMultiplierSaved(true);
+      setTimeout(() => setMultiplierSaved(false), 2000);
+    } finally {
+      setMultiplierSaving(false);
+    }
+  }, [mentionMultiplier]);
+
+  const handleTriggerScrape = useCallback(async (type: 'full' | 'discovery' | 'profiles' | 'posts' | 'mentions') => {
     setScrapeLoading(type);
     try {
       await fetch('/api/scrape/trigger', {
@@ -164,6 +190,57 @@ export default function SettingsPage() {
         </Card>
       </Link>
 
+      {/* Scoring */}
+      <Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-linkify-green/10 rounded-lg">
+              <Trophy className="w-5 h-5 text-linkify-green" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Scoring</h3>
+              <p className="text-sm text-neutral-400">Configure how leaderboard points are calculated</p>
+            </div>
+          </div>
+
+          <div className="p-3 bg-elevated rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-neutral-300">Company mention bonus multiplier</label>
+              <span className="text-sm font-semibold text-linkify-green">{mentionMultiplier.toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              step="0.5"
+              value={mentionMultiplier}
+              onChange={(e) => setMentionMultiplier(parseFloat(e.target.value))}
+              className="w-full accent-linkify-green"
+            />
+            <div className="flex justify-between text-xs text-neutral-500">
+              <span>1.0x (no bonus)</span>
+              <span>5.0x</span>
+            </div>
+          </div>
+
+          <div className="p-3 bg-elevated rounded-lg text-xs text-neutral-400">
+            <span className="font-semibold text-neutral-300">Formula: </span>
+            Points = (Likes &times;0.5 + Comments &times;2 + Shares &times;3){' '}
+            {mentionMultiplier > 1 && (
+              <span className="text-linkify-green">&times; {mentionMultiplier.toFixed(1)}x for company mentions</span>
+            )}
+          </div>
+
+          <button
+            onClick={handleSaveMultiplier}
+            disabled={multiplierSaving}
+            className="px-6 py-2.5 bg-linkify-green hover:bg-linkify-green-hover text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
+          >
+            {multiplierSaved ? 'Saved!' : multiplierSaving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </Card>
+
       {/* Company LinkedIn Page */}
       <Card>
         <div className="space-y-4">
@@ -173,7 +250,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <h3 className="font-semibold">Company LinkedIn Page</h3>
-              <p className="text-sm text-neutral-400">The LinkedIn company page URL to track mentions for</p>
+              <p className="text-sm text-neutral-400">The LinkedIn company page URL to track trending posts for</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -274,6 +351,18 @@ export default function SettingsPage() {
                     <MessageSquare className="w-4 h-4" />
                   )}
                   Update Posts
+                </button>
+                <button
+                  onClick={() => handleTriggerScrape('mentions')}
+                  disabled={!!scrapeLoading || isAnyScrapeRunning}
+                  className="flex items-center gap-2 px-4 py-2 bg-elevated hover:bg-highlight text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
+                >
+                  {scrapeLoading === 'mentions' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <AtSign className="w-4 h-4" />
+                  )}
+                  Search Mentions
                 </button>
               </div>
             </>

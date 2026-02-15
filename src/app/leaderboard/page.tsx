@@ -78,10 +78,10 @@ export default function LeaderboardPage() {
           {/* Text content */}
           <div className="flex-1 min-w-0 pb-1">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4ade80] mb-2">
-              Leaderboard
+              Trending
             </p>
             <h1 className="text-6xl font-extrabold text-white tracking-tight leading-none mb-4">
-              Company Mentions
+              What&apos;s Trending
             </h1>
 
             <div className="flex items-center gap-3 text-sm text-neutral-300">
@@ -96,7 +96,7 @@ export default function LeaderboardPage() {
               )}
               <span className="inline-flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-neutral-400" />
-                {totalMentions} mentions
+                {totalMentions} posts
               </span>
               <span className="text-neutral-500">&middot;</span>
               <span className="inline-flex items-center gap-1.5">

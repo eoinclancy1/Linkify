@@ -34,7 +34,7 @@ export async function GET() {
       };
     });
 
-  // When using mock data, also include external posts
+  // External posts — from DB when using real data, from seed data when using mock
   let externalHits: typeof employeeHits = [];
   if (process.env.USE_MOCK_DATA === 'true' || !process.env.DATABASE_URL) {
     const { seedExternalPosts } = await import('@/lib/data/seed-posts');
@@ -57,6 +57,31 @@ export async function GET() {
         mentionsCompany: p.mentionsCompany,
         isExternal: true,
       }));
+  } else {
+    // Fetch external posts from DB (external authors not included in getEmployees())
+    const { prisma } = await import('@/lib/db/prisma');
+    const externalPosts = await prisma.post.findMany({
+      where: { isExternal: true, likes: { gte: 100 } },
+      include: { author: true },
+      orderBy: { likes: 'desc' },
+    });
+    externalHits = externalPosts.map(p => ({
+      id: p.id,
+      authorId: p.authorId,
+      authorName: p.author.fullName,
+      authorAvatar: p.author.avatarUrl,
+      authorTitle: p.author.jobTitle,
+      department: '',
+      textContent: p.textContent,
+      publishedAt: p.publishedAt.toISOString(),
+      url: p.linkedinUrl,
+      likes: p.likes,
+      comments: p.comments,
+      shares: p.shares,
+      engagementScore: p.engagementScore,
+      mentionsCompany: p.mentionsCompany,
+      isExternal: true,
+    }));
   }
 
   const allHits = [...employeeHits, ...externalHits].sort((a, b) => b.likes - a.likes);
