@@ -5,11 +5,95 @@ import EmployeeDetailPanel from '@/components/employees/EmployeeDetailPanel';
 import PostingHeatmap from '@/components/employees/PostingHeatmap';
 import PostFrequencyChart from '@/components/employees/PostFrequencyChart';
 import Skeleton from '@/components/ui/Skeleton';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Clock, TrendingUp, ThumbsUp, MessageCircle, Share2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
+import type { Post } from '@/types';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getExcerpt(text: string, maxLength = 140): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength).trimEnd() + '...';
+}
+
+function timeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 14) return '1 week ago';
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return formatDate(dateStr);
+}
+
+function HeroPostCard({ post, label, icon, accentColor }: {
+  post: Post | null;
+  label: string;
+  icon: React.ReactNode;
+  accentColor: string;
+}) {
+  if (!post) {
+    return (
+      <div className="bg-surface rounded-lg p-6 flex flex-col">
+        <div className="flex items-center gap-2 mb-4">
+          {icon}
+          <h3 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide">{label}</h3>
+        </div>
+        <p className="text-neutral-500 text-sm flex-1">No posts yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`bg-surface rounded-lg p-6 flex flex-col border-t-2 ${accentColor}`}>
+      <div className="flex items-center gap-2 mb-4">
+        {icon}
+        <h3 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide">{label}</h3>
+        <span className="ml-auto text-xs text-neutral-500">{timeAgo(post.publishedAt)}</span>
+      </div>
+
+      <p className="text-sm text-neutral-200 leading-relaxed flex-1">
+        {getExcerpt(post.textContent, 200)}
+      </p>
+
+      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-elevated text-xs text-neutral-400">
+        <span className="inline-flex items-center gap-1">
+          <ThumbsUp className="h-3.5 w-3.5" />
+          {post.engagement.likes}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <MessageCircle className="h-3.5 w-3.5" />
+          {post.engagement.comments}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <Share2 className="h-3.5 w-3.5" />
+          {post.engagement.shares}
+        </span>
+        <a
+          href={post.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-auto inline-flex items-center gap-1 text-linkify-green hover:underline"
+        >
+          View on LinkedIn
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function EmployeeDetailPage({
   params,
@@ -25,6 +109,27 @@ export default function EmployeeDetailPage({
 
   const employee = employees?.find((e: { id: string }) => e.id === employeeId);
   const streak = streaks?.find((s: { employeeId: string }) => s.employeeId === employeeId);
+
+  // Derived post data
+  const sortedPosts: Post[] = posts
+    ? [...posts].sort((a: Post, b: Post) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    : [];
+
+  const mostRecentPost = sortedPosts.length > 0 ? sortedPosts[0] : null;
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const posts30d = sortedPosts.filter((p) => new Date(p.publishedAt) >= thirtyDaysAgo);
+
+  const mostEngagedPost30d = posts30d.length > 0
+    ? posts30d.reduce((best, p) => p.engagement.engagementScore > best.engagement.engagementScore ? p : best, posts30d[0])
+    : null;
+
+  const avgEngagement =
+    sortedPosts.length > 0
+      ? Math.round(sortedPosts.reduce((sum: number, p: Post) => sum + p.engagement.engagementScore, 0) / sortedPosts.length)
+      : 0;
 
   // Build weekly frequency data for chart (last 12 weeks)
   const weeklyData = (() => {
@@ -73,9 +178,27 @@ export default function EmployeeDetailPage({
       <EmployeeDetailPanel
         employee={employee}
         streak={streak || { employeeId, currentStreak: 0, longestStreak: 0, streakUnit: 'week' as const, lastPostDate: '', isActive: false }}
-        recentPosts={posts?.slice(0, 10) || []}
+        posts30dCount={posts30d.length}
+        avgEngagement={avgEngagement}
       />
 
+      {/* Hero Post Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <HeroPostCard
+          post={mostRecentPost}
+          label="Latest Release"
+          icon={<Clock className="h-4 w-4 text-blue-400" />}
+          accentColor="border-blue-500"
+        />
+        <HeroPostCard
+          post={mostEngagedPost30d}
+          label="What's Trending"
+          icon={<TrendingUp className="h-4 w-4 text-linkify-green" />}
+          accentColor="border-linkify-green"
+        />
+      </div>
+
+      {/* Activity Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-surface rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4">Posting Activity</h3>
@@ -84,6 +207,46 @@ export default function EmployeeDetailPage({
         <div className="bg-surface rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4">Weekly Post Frequency</h3>
           <PostFrequencyChart data={weeklyData} />
+        </div>
+      </div>
+
+      {/* Recent Posts */}
+      <div>
+        <h2 className="text-lg font-semibold text-white mb-4">Recent Posts</h2>
+        <div className="space-y-3">
+          {sortedPosts.length === 0 && (
+            <p className="text-neutral-400 text-sm">No recent posts to display.</p>
+          )}
+          {sortedPosts.slice(0, 10).map((post) => (
+            <div key={post.id} className="bg-surface rounded-lg p-4">
+              <p className="text-sm text-neutral-300">{getExcerpt(post.textContent)}</p>
+              <p className="text-xs text-neutral-500 mt-2">{formatDate(post.publishedAt)}</p>
+
+              <div className="flex items-center gap-4 mt-3 text-xs text-neutral-400">
+                <span className="inline-flex items-center gap-1">
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                  {post.engagement.likes}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  {post.engagement.comments}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Share2 className="h-3.5 w-3.5" />
+                  {post.engagement.shares}
+                </span>
+                <a
+                  href={post.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-auto inline-flex items-center gap-1 text-linkify-green hover:underline"
+                >
+                  View on LinkedIn
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
