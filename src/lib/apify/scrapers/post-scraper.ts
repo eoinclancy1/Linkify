@@ -7,6 +7,9 @@ const PROFILE_DELAY_MS = 5_000;
 
 interface PostScraperInput {
   targetUrls: string[];
+  postedLimit?: string;
+  maxPosts?: number;
+  includeReposts?: boolean;
 }
 
 interface ApifyPostOutput {
@@ -199,7 +202,12 @@ export interface PostScrapeResult {
 export async function scrapePostsForProfile(
   profileUrl: string,
 ): Promise<PostScrapeResult> {
-  const input: PostScraperInput = { targetUrls: [profileUrl] };
+  const input: PostScraperInput = {
+    targetUrls: [profileUrl],
+    postedLimit: 'month',
+    maxPosts: 0,
+    includeReposts: false,
+  };
 
   const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
 
@@ -225,7 +233,12 @@ export async function scrapePostsForProfiles(
   for (let i = 0; i < profiles.length; i++) {
     const { profileUrl, authorId } = profiles[i];
 
-    const input: PostScraperInput = { targetUrls: [profileUrl] };
+    const input: PostScraperInput = {
+      targetUrls: [profileUrl],
+      postedLimit: 'month',
+      maxPosts: 0,
+      includeReposts: false,
+    };
 
     const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
     runIds.push(result.runId);
