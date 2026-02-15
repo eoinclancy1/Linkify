@@ -42,7 +42,7 @@ export class ScrapeOrchestrator {
 
     await this.discoverNewEmployees();
     await this.scrapeAllProfiles();
-    await this.scrapeAllPosts(config.scrapeHistoryDays);
+    await this.scrapeAllPosts();
     await this.updateCompanyMentions();
     await this.refreshPostingActivities();
   }
@@ -95,6 +95,11 @@ export class ScrapeOrchestrator {
         select: { id: true, linkedinUrl: true },
       });
 
+      if (employees.length === 0) {
+        await completeScrapeRun(run.id, 'COMPLETED', { itemsProcessed: 0 });
+        return { updated: 0 };
+      }
+
       const urls = employees.map((e) => e.linkedinUrl);
       const result = await scrapeProfiles(urls);
 
@@ -134,7 +139,7 @@ export class ScrapeOrchestrator {
     }
   }
 
-  async scrapeAllPosts(daysBack = 30): Promise<{ created: number; updated: number }> {
+  async scrapeAllPosts(): Promise<{ created: number; updated: number }> {
     const config = await getConfig();
     const run = await createScrapeRun('POST_SCRAPE');
 
@@ -144,12 +149,13 @@ export class ScrapeOrchestrator {
         select: { id: true, linkedinUrl: true },
       });
 
-      const dateFrom = new Date();
-      dateFrom.setDate(dateFrom.getDate() - daysBack);
-      const dateFromStr = dateFrom.toISOString().slice(0, 10);
+      if (employees.length === 0) {
+        await completeScrapeRun(run.id, 'COMPLETED', { itemsProcessed: 0 });
+        return { created: 0, updated: 0 };
+      }
 
       const profiles = employees.map((e) => ({ profileUrl: e.linkedinUrl, authorId: e.id }));
-      const result = await scrapePostsForProfiles(profiles, config.companyLinkedinUrl, dateFromStr);
+      const result = await scrapePostsForProfiles(profiles, config.companyLinkedinUrl);
 
       let created = 0;
       let updated = 0;

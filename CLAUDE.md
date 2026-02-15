@@ -43,9 +43,12 @@ The factory `getDataProvider()` is a singleton — provider choice is locked for
 ### Key Gotchas
 
 1. **No `url` in `schema.prisma`** — the datasource block has only `provider = "postgresql"`. The connection URL lives in `prisma.config.ts`.
-2. **Adapter required** — Prisma 7 uses `@prisma/adapter-pg` + the `pg` package. The client singleton is in `src/lib/db/prisma.ts`.
+2. **Adapter required** — Prisma 7 uses `@prisma/adapter-pg` + the `pg` package. The client singleton is in `src/lib/db/prisma.ts`. Must pass an explicit `pg.Pool` instance to `PrismaPg` (not the `{ connectionString }` shorthand) for Vercel compatibility.
 3. **JSON field casting** — when writing `unknown[]` data to JSON columns, cast to `Prisma.InputJsonValue`.
-4. **Environment loading** — `prisma.config.ts` needs `import "dotenv/config"` to read `.env.local`.
+4. **Environment loading** — `prisma.config.ts` uses `dotenv` with `{ path: ".env.local" }` to load the correct env file.
+5. **No dynamic `require()`** — the production bundler (Turbopack) breaks `require()` calls. Use static imports everywhere. The DataProvider factory uses static imports of both `MockDataProvider` and `PostgresDataProvider`.
+6. **Vercel serverless** — `pg` and `@prisma/adapter-pg` must be in `serverExternalPackages` in `next.config.ts` to avoid bundling issues.
+7. **Build scripts** — `package.json` has `"build": "prisma generate && next build"` and `"postinstall": "prisma generate"` to ensure the Prisma client is generated on Vercel.
 
 ### Migration Commands
 
@@ -118,9 +121,27 @@ src/app/api/        Next.js API routes
 prisma/             Schema + migrations
 ```
 
-## Going Live (Mock → Real Data)
+## Deployment
 
-1. Set up PostgreSQL and set `DATABASE_URL` in `.env.local`
+### Production Stack
+- **Hosting**: Vercel (auto-deploys from `main` branch)
+- **Database**: Neon (serverless PostgreSQL) — `ep-empty-math-ai0tutbj-pooler.c-4.us-east-1.aws.neon.tech`
+- **URL**: https://airops-linkify.vercel.app/
+- **Cron**: Vercel cron runs daily at 2 AM UTC (`vercel.json`)
+
+### Production Environment Variables (set in Vercel dashboard)
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Neon connection string (`?sslmode=require`) |
+| `APIFY_TOKEN` | Apify API token |
+| `CRON_SECRET` | Random secret for cron auth |
+| `USE_MOCK_DATA` | `false` |
+| `NEXT_PUBLIC_APIFY_CONFIGURED` | `true` |
+
+### Going Live (Mock → Real Data)
+
+1. Set up PostgreSQL (Neon) and set `DATABASE_URL` in `.env.local`
 2. Run `npx prisma migrate deploy` to create tables
 3. Get an Apify API token and set `APIFY_TOKEN`
 4. Set `USE_MOCK_DATA="false"`
@@ -144,3 +165,5 @@ npx prisma studio    # visual DB browser
 
 - Badge component variants: `green`, `blue`, `orange`, `red`, `neutral` (not `gray`)
 - Settings page uses SWR with 5-second polling for live scrape status
+- Theme colors: `linkify-green` (#1DB954), `background` (#121212), `surface` (#181818), `elevated` (#282828), `highlight` (#333333)
+- Next.js 16 uses `proxy.ts` instead of `middleware.ts` (deprecated but still works)

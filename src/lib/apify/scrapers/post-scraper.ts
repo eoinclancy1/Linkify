@@ -6,9 +6,7 @@ const ACTOR_ID = 'harvestapi/linkedin-profile-posts';
 const PROFILE_DELAY_MS = 5_000;
 
 interface PostScraperInput {
-  profileUrl: string;
-  dateFrom?: string;
-  dateTo?: string;
+  targetUrls: string[];
 }
 
 interface ApifyPostOutput {
@@ -133,12 +131,8 @@ export interface PostScrapeResult {
 
 export async function scrapePostsForProfile(
   profileUrl: string,
-  dateFrom?: string,
 ): Promise<PostScrapeResult> {
-  const input: PostScraperInput = { profileUrl };
-  if (dateFrom) {
-    input.dateFrom = dateFrom;
-  }
+  const input: PostScraperInput = { targetUrls: [profileUrl] };
 
   const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
 
@@ -156,7 +150,6 @@ export async function scrapePostsForProfile(
 export async function scrapePostsForProfiles(
   profiles: Array<{ profileUrl: string; authorId: string }>,
   companyUrl: string,
-  dateFrom?: string,
 ): Promise<{ runIds: string[]; postsByAuthor: Map<string, MappedPost[]> }> {
   const runIds: string[] = [];
   const postsByAuthor = new Map<string, MappedPost[]>();
@@ -164,8 +157,7 @@ export async function scrapePostsForProfiles(
   for (let i = 0; i < profiles.length; i++) {
     const { profileUrl, authorId } = profiles[i];
 
-    const input: PostScraperInput = { profileUrl };
-    if (dateFrom) input.dateFrom = dateFrom;
+    const input: PostScraperInput = { targetUrls: [profileUrl] };
 
     const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
     runIds.push(result.runId);

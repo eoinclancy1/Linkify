@@ -15,6 +15,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(run);
     }
 
+    // Auto-expire RUNNING scrapes older than 10 minutes
+    await prisma.scrapeRun.updateMany({
+      where: {
+        status: 'RUNNING',
+        startedAt: { lt: new Date(Date.now() - 10 * 60 * 1000) },
+      },
+      data: {
+        status: 'FAILED',
+        completedAt: new Date(),
+        errors: { message: 'Timed out — scrape did not complete within 10 minutes' },
+      },
+    });
+
     const runs = await prisma.scrapeRun.findMany({
       orderBy: { startedAt: 'desc' },
       take: 10,

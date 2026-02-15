@@ -3,7 +3,7 @@ import { runActor, type ActorRunResult } from '@/lib/apify/client';
 const ACTOR_ID = 'harvestapi/linkedin-company-employees';
 
 interface EmployeeDiscoveryInput {
-  url: string;
+  companies: string[];
 }
 
 interface EmployeeDiscoveryOutput {
@@ -27,7 +27,7 @@ function normalizeLinkedinUrl(url: string): string {
 export async function discoverEmployees(companyUrl: string): Promise<DiscoveryResult> {
   const result: ActorRunResult<EmployeeDiscoveryOutput> = await runActor(
     ACTOR_ID,
-    { url: companyUrl } satisfies EmployeeDiscoveryInput,
+    { companies: [companyUrl] } satisfies EmployeeDiscoveryInput,
   );
 
   const profileUrls = result.items
