@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { after } from 'next/server';
 import { ScrapeOrchestrator } from '@/lib/scraping/orchestrator';
+
+// Allow up to 5 minutes for scrape operations
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,24 +20,23 @@ export async function POST(request: NextRequest) {
 
     const orchestrator = new ScrapeOrchestrator();
 
-    // Run in the background - don't await
-    const promise = (async () => {
-      switch (type) {
-        case 'full':
-          await orchestrator.runFullSync();
-          break;
-        case 'profiles':
-          await orchestrator.scrapeAllProfiles();
-          break;
-        case 'posts':
-          await orchestrator.scrapeAllPosts();
-          break;
+    // Run after the response is sent — keeps the function alive on Vercel
+    after(async () => {
+      try {
+        switch (type) {
+          case 'full':
+            await orchestrator.runFullSync();
+            break;
+          case 'profiles':
+            await orchestrator.scrapeAllProfiles();
+            break;
+          case 'posts':
+            await orchestrator.scrapeAllPosts();
+            break;
+        }
+      } catch (err) {
+        console.error(`Scrape (${type}) failed:`, err);
       }
-    })();
-
-    // Don't block the response - let it run in background
-    promise.catch((err) => {
-      console.error(`Scrape (${type}) failed:`, err);
     });
 
     return NextResponse.json({ status: 'started', type });
