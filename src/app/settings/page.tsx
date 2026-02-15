@@ -269,21 +269,17 @@ export default function SettingsPage() {
               {saved ? 'Saved!' : saving ? 'Saving...' : 'Save'}
             </button>
           </div>
-          {/* Mention Search Query — derived from URL */}
-          {(() => {
-            const slug = companyUrl.match(/company\/([^/?]+)/)?.[1]?.replace(/-/g, ' ') || '';
-            return slug ? (
-              <div className="space-y-1">
-                <label className="text-xs text-neutral-500">Mention search query (derived from URL)</label>
-                <input
-                  type="text"
-                  value={slug}
-                  readOnly
-                  className="w-full bg-elevated rounded-lg px-4 py-2.5 text-neutral-400 cursor-not-allowed outline-none text-sm"
-                />
-              </div>
-            ) : null;
-          })()}
+          {config?.companyName && (
+            <div className="space-y-1">
+              <label className="text-xs text-neutral-500">Mention search query</label>
+              <input
+                type="text"
+                value={config.companyName}
+                readOnly
+                className="w-full bg-elevated rounded-lg px-4 py-2.5 text-neutral-400 cursor-not-allowed outline-none text-sm"
+              />
+            </div>
+          )}
         </div>
       </Card>
 
