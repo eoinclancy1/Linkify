@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Department {
+  ENGINEERING
+  MARKETING
+  SALES
+  PRODUCT
+  DESIGN
+  OTHER
+}
+
+enum PostType {
+  ORIGINAL
+  RESHARE
+  ARTICLE
+  POLL
+}
+
+enum ScrapeType {
+  EMPLOYEE_DISCOVERY
+  PROFILE_SCRAPE
+  POST_SCRAPE
+  ENGAGEMENT_UPDATE
+}
+
+enum ScrapeStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Employee {
+  id              String     @id @default(cuid())
+  linkedinUrl     String     @unique
+  firstName       String
+  lastName        String
+  fullName        String
+  headline        String?
+  about           String?
+  jobTitle        String     @default("")
+  department      Department @default(OTHER)
+  avatarUrl       String     @default("")
+  experience      Json?
+  education       Json?
+  skills          Json?
+  isActive        Boolean    @default(true)
+  isManuallyAdded Boolean    @default(false)
+  lastScrapedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts            Post[]
+  companyMentions  CompanyMention[]
+  postingActivities PostingActivity[]
+
+  @@index([isActive])
+  @@index([department])
+}
+
+model Post {
+  id              String   @id @default(cuid())
+  linkedinPostId  String   @unique
+  linkedinUrl     String   @unique
+  authorId        String
+  author          Employee @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  type            PostType @default(ORIGINAL)
+  textContent     String   @default("")
+  publishedAt     DateTime
+  likes           Int      @default(0)
+  comments        Int      @default(0)
+  shares          Int      @default(0)
+  engagementScore Int      @default(0)
+  mentionsCompany Boolean  @default(false)
+  mediaUrls       Json?
+  hashtags        Json?
+  isExternal      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyMentions     CompanyMention[]
+  engagementSnapshots EngagementSnapshot[]
+
+  @@index([authorId])
+  @@index([publishedAt])
+  @@index([mentionsCompany])
+  @@index([engagementScore])
+}
+
+model CompanyMention {
+  id          String   @id @default(cuid())
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      Employee @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  publishedAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId])
+  @@index([authorId])
+  @@index([publishedAt])
+}
+
+model EngagementSnapshot {
+  id       String   @id @default(cuid())
+  postId   String
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  likes    Int
+  comments Int
+  shares   Int
+  score    Int
+  snapshotAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([snapshotAt])
+}
+
+model PostingActivity {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime @db.Date
+  postCount  Int      @default(0)
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+model ScrapeRun {
+  id             String       @id @default(cuid())
+  type           ScrapeType
+  status         ScrapeStatus @default(PENDING)
+  apifyActorId   String?
+  apifyRunId     String?
+  itemsProcessed Int          @default(0)
+  itemsCreated   Int          @default(0)
+  itemsUpdated   Int          @default(0)
+  errors         Json?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([type])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model AppConfig {
+  id                 String  @id @default("singleton")
+  companyLinkedinUrl String  @default("")
+  companyName        String  @default("")
+  scrapeEnabled      Boolean @default(true)
+  scrapeHistoryDays  Int     @default(30)
+
+  updatedAt DateTime @updatedAt
+}
