@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
     PENDING: 'orange' as const,
     FAILED: 'red' as const,
     PARTIAL: 'orange' as const,
-  }[status] ?? 'gray' as const;
+  }[status] ?? 'neutral' as const;
 
   return <Badge variant={variant}>{status}</Badge>;
 }

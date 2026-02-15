@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getDataProvider } from '@/lib/data/provider';
-import { seedExternalPosts } from '@/lib/data/seed-posts';
 
 export async function GET() {
   const provider = getDataProvider();
@@ -35,26 +34,30 @@ export async function GET() {
       };
     });
 
-  // External posts with 100+ likes
-  const externalHits = seedExternalPosts
-    .filter(p => p.engagement.likes >= 100)
-    .map(p => ({
-      id: p.id,
-      authorId: p.authorId,
-      authorName: p.authorName,
-      authorAvatar: p.authorAvatar,
-      authorTitle: p.authorTitle,
-      department: '',
-      textContent: p.textContent,
-      publishedAt: p.publishedAt,
-      url: p.url,
-      likes: p.engagement.likes,
-      comments: p.engagement.comments,
-      shares: p.engagement.shares,
-      engagementScore: p.engagement.engagementScore,
-      mentionsCompany: p.mentionsCompany,
-      isExternal: true,
-    }));
+  // When using mock data, also include external posts
+  let externalHits: typeof employeeHits = [];
+  if (process.env.USE_MOCK_DATA === 'true' || !process.env.DATABASE_URL) {
+    const { seedExternalPosts } = await import('@/lib/data/seed-posts');
+    externalHits = seedExternalPosts
+      .filter(p => p.engagement.likes >= 100)
+      .map(p => ({
+        id: p.id,
+        authorId: p.authorId,
+        authorName: p.authorName,
+        authorAvatar: p.authorAvatar,
+        authorTitle: p.authorTitle,
+        department: '',
+        textContent: p.textContent,
+        publishedAt: p.publishedAt,
+        url: p.url,
+        likes: p.engagement.likes,
+        comments: p.engagement.comments,
+        shares: p.engagement.shares,
+        engagementScore: p.engagement.engagementScore,
+        mentionsCompany: p.mentionsCompany,
+        isExternal: true,
+      }));
+  }
 
   const allHits = [...employeeHits, ...externalHits].sort((a, b) => b.likes - a.likes);
 
