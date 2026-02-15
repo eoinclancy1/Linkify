@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db/prisma';
 import { discoverEmployees } from '@/lib/apify/scrapers/employee-discovery';
 import { scrapeProfiles, type MappedProfile } from '@/lib/apify/scrapers/profile-scraper';
 import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
-import type { ScrapeType, ScrapeStatus } from '@prisma/client';
+import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
 
 async function getConfig() {
   const config = await prisma.appConfig.findUnique({ where: { id: 'singleton' } });
@@ -111,9 +111,9 @@ export class ScrapeOrchestrator {
             jobTitle: profile.jobTitle,
             department: profile.department,
             avatarUrl: profile.avatarUrl,
-            experience: profile.experience ?? undefined,
-            education: profile.education ?? undefined,
-            skills: profile.skills ?? undefined,
+            experience: (profile.experience as Prisma.InputJsonValue) ?? undefined,
+            education: (profile.education as Prisma.InputJsonValue) ?? undefined,
+            skills: (profile.skills as Prisma.InputJsonValue) ?? undefined,
             lastScrapedAt: new Date(),
           },
         });
