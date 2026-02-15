@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import useSWR, { mutate } from 'swr';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2 } from 'lucide-react';
+import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -101,7 +101,7 @@ export default function SettingsPage() {
     }
   }, [companyUrl]);
 
-  const handleTriggerScrape = useCallback(async (type: 'full' | 'posts') => {
+  const handleTriggerScrape = useCallback(async (type: 'full' | 'discovery' | 'profiles' | 'posts') => {
     setScrapeLoading(type);
     try {
       await fetch('/api/scrape/trigger', {
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                   )}
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => handleTriggerScrape('full')}
                   disabled={!!scrapeLoading || isAnyScrapeRunning}
@@ -219,7 +219,31 @@ export default function SettingsPage() {
                   ) : (
                     <Play className="w-4 h-4" />
                   )}
-                  Run Full Sync
+                  Full Sync
+                </button>
+                <button
+                  onClick={() => handleTriggerScrape('discovery')}
+                  disabled={!!scrapeLoading || isAnyScrapeRunning}
+                  className="flex items-center gap-2 px-4 py-2 bg-elevated hover:bg-highlight text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
+                >
+                  {scrapeLoading === 'discovery' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  Discover Employees
+                </button>
+                <button
+                  onClick={() => handleTriggerScrape('profiles')}
+                  disabled={!!scrapeLoading || isAnyScrapeRunning}
+                  className="flex items-center gap-2 px-4 py-2 bg-elevated hover:bg-highlight text-white rounded-lg transition-colors disabled:opacity-50 text-sm"
+                >
+                  {scrapeLoading === 'profiles' ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UserCheck className="w-4 h-4" />
+                  )}
+                  Update Profiles
                 </button>
                 <button
                   onClick={() => handleTriggerScrape('posts')}
@@ -229,9 +253,9 @@ export default function SettingsPage() {
                   {scrapeLoading === 'posts' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <RefreshCw className="w-4 h-4" />
+                    <MessageSquare className="w-4 h-4" />
                   )}
-                  Update Posts Only
+                  Update Posts
                 </button>
               </div>
             </>

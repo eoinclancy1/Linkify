@@ -11,9 +11,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type } = body as { type?: string };
 
-    if (!type || !['full', 'profiles', 'posts'].includes(type)) {
+    if (!type || !['full', 'discovery', 'profiles', 'posts'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be one of: full, profiles, posts' },
+        { error: 'Invalid type. Must be one of: full, discovery, profiles, posts' },
         { status: 400 },
       );
     }
@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
         switch (type) {
           case 'full':
             await orchestrator.runFullSync();
+            break;
+          case 'discovery':
+            await orchestrator.discoverNewEmployees();
             break;
           case 'profiles':
             await orchestrator.scrapeAllProfiles();
