@@ -13,15 +13,20 @@ interface ApifyPostOutput {
   postId?: string;
   urn?: string;
   id?: string;
+  shareUrn?: string;
+  entityId?: string;
   url?: string;
   postUrl?: string;
+  linkedinUrl?: string;
   text?: string;
   textContent?: string;
   content?: string;
-  publishedAt?: string;
-  postedAt?: string;
-  date?: string;
-  createdAt?: string;
+  // postedAt can be a string OR an object { timestamp, date, ... } from harvestapi
+  publishedAt?: string | number;
+  postedAt?: string | number | { timestamp?: number; date?: string };
+  date?: string | number;
+  createdAt?: string | number;
+  // Engagement can be top-level or nested in an "engagement" object
   likes?: number;
   numLikes?: number;
   comments?: number | unknown[];
@@ -30,11 +35,17 @@ interface ApifyPostOutput {
   numShares?: number;
   reposts?: number;
   repostCount?: number;
+  engagement?: {
+    likes?: number;
+    comments?: number;
+    shares?: number;
+  };
   type?: string;
   postType?: string;
   isRepost?: boolean;
   media?: unknown[];
   images?: string[];
+  postImages?: unknown[];
   hashtags?: string[];
 }
 
@@ -97,9 +108,26 @@ function toCount(value: number | unknown[] | undefined, fallback?: number): numb
   return fallback ?? 0;
 }
 
-/** Parse a date that may be an ISO string, unix timestamp (ms or s), or other format */
-function parseDate(raw: string | number | undefined): Date {
-  if (!raw) return new Date();
+/** Extract a date from the postedAt field which may be a string, number, or object */
+function extractPostedAt(raw: string | number | { timestamp?: number; date?: string } | undefined): Date | null {
+  if (!raw) return null;
+  if (typeof raw === 'object' && raw !== null) {
+    // harvestapi returns { timestamp, date, postedAgoShort, postedAgoText }
+    if (raw.date) {
+      const d = new Date(raw.date);
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (raw.timestamp) {
+      return new Date(raw.timestamp < 1e12 ? raw.timestamp * 1000 : raw.timestamp);
+    }
+    return null;
+  }
+  return parseDate(raw);
+}
+
+/** Parse a date that may be an ISO string or unix timestamp (ms or s) */
+function parseDate(raw: string | number | undefined): Date | null {
+  if (!raw) return null;
   if (typeof raw === 'number') {
     // Unix timestamp: if < 1e12, it's in seconds; otherwise milliseconds
     return new Date(raw < 1e12 ? raw * 1000 : raw);
@@ -107,8 +135,7 @@ function parseDate(raw: string | number | undefined): Date {
   // Try parsing as-is
   const d = new Date(raw);
   if (!isNaN(d.getTime())) return d;
-  // Fallback: current date
-  return new Date();
+  return null;
 }
 
 function isRepost(post: ApifyPostOutput): boolean {
@@ -124,25 +151,33 @@ export function mapPostToDatabase(
   // Exclude reposts
   if (isRepost(post)) return null;
 
-  const linkedinPostId = post.postId || post.urn || post.id || '';
-  const linkedinUrl = post.url || post.postUrl || '';
+  const linkedinPostId = post.postId || post.shareUrn || post.urn || post.entityId || post.id || '';
+  const linkedinUrl = post.linkedinUrl || post.url || post.postUrl || '';
 
   if (!linkedinPostId && !linkedinUrl) return null;
 
   const textContent = post.text || post.textContent || post.content || '';
-  const likes = post.likes ?? post.numLikes ?? 0;
-  const comments = toCount(post.comments, post.numComments);
-  const shares = post.shares ?? post.numShares ?? post.repostCount ?? post.reposts ?? 0;
 
-  const publishedAtRaw = post.publishedAt || post.postedAt || post.date || post.createdAt;
-  const publishedAt = parseDate(publishedAtRaw);
+  // Engagement: check nested "engagement" object first (harvestapi format), then top-level
+  const eng = post.engagement;
+  const likes = eng?.likes ?? post.likes ?? post.numLikes ?? 0;
+  const comments = eng?.comments ?? toCount(post.comments, post.numComments);
+  const shares = eng?.shares ?? post.shares ?? post.numShares ?? post.repostCount ?? post.reposts ?? 0;
 
-  const mediaUrls = post.images || (post.media as string[] | undefined) || null;
+  // Date: postedAt may be an object { timestamp, date } from harvestapi
+  const publishedAt =
+    extractPostedAt(post.postedAt) ??
+    parseDate(post.publishedAt) ??
+    parseDate(post.date) ??
+    parseDate(post.createdAt) ??
+    new Date();
+
+  const mediaUrls = post.images || (post.postImages as string[] | undefined) || (post.media as string[] | undefined) || null;
   const hashtags = post.hashtags || extractHashtags(textContent);
 
   return {
     linkedinPostId: linkedinPostId || linkedinUrl,
-    linkedinUrl: linkedinUrl || `https://linkedin.com/feed/update/${linkedinPostId}`,
+    linkedinUrl: linkedinUrl || `https://www.linkedin.com/feed/update/${linkedinPostId}`,
     type: mapPostType(post.type || post.postType),
     textContent,
     publishedAt,
@@ -182,9 +217,10 @@ export async function scrapePostsForProfile(
 export async function scrapePostsForProfiles(
   profiles: Array<{ profileUrl: string; authorId: string }>,
   companyUrl: string,
-): Promise<{ runIds: string[]; postsByAuthor: Map<string, MappedPost[]> }> {
+): Promise<{ runIds: string[]; postsByAuthor: Map<string, MappedPost[]>; costUsd: number }> {
   const runIds: string[] = [];
   const postsByAuthor = new Map<string, MappedPost[]>();
+  let totalCost = 0;
 
   for (let i = 0; i < profiles.length; i++) {
     const { profileUrl, authorId } = profiles[i];
@@ -193,6 +229,7 @@ export async function scrapePostsForProfiles(
 
     const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
     runIds.push(result.runId);
+    totalCost += result.costUsd;
 
     const posts = result.items
       .map((item) => mapPostToDatabase(item, companyUrl))
@@ -206,5 +243,5 @@ export async function scrapePostsForProfiles(
     }
   }
 
-  return { runIds, postsByAuthor };
+  return { runIds, postsByAuthor, costUsd: totalCost };
 }

@@ -18,6 +18,7 @@ interface EmployeeDiscoveryOutput {
 export interface DiscoveryResult {
   runId: string;
   profileUrls: string[];
+  costUsd: number;
 }
 
 function normalizeLinkedinUrl(url: string): string {
@@ -42,5 +43,6 @@ export async function discoverEmployees(companyUrl: string): Promise<DiscoveryRe
   return {
     runId: result.runId,
     profileUrls: unique,
+    costUsd: result.costUsd,
   };
 }

@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
             break;
           case 'posts':
             await orchestrator.scrapeAllPosts();
+            await orchestrator.updateCompanyMentions();
+            await orchestrator.refreshPostingActivities();
             break;
         }
       } catch (err) {

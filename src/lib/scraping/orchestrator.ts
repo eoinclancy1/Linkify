@@ -18,7 +18,7 @@ async function createScrapeRun(type: ScrapeType) {
 async function completeScrapeRun(
   id: string,
   status: ScrapeStatus,
-  stats: { itemsProcessed?: number; itemsCreated?: number; itemsUpdated?: number; errors?: unknown },
+  stats: { itemsProcessed?: number; itemsCreated?: number; itemsUpdated?: number; costUsd?: number; errors?: unknown },
 ) {
   await prisma.scrapeRun.update({
     where: { id },
@@ -28,6 +28,7 @@ async function completeScrapeRun(
       itemsProcessed: stats.itemsProcessed ?? 0,
       itemsCreated: stats.itemsCreated ?? 0,
       itemsUpdated: stats.itemsUpdated ?? 0,
+      costUsd: stats.costUsd ?? 0,
       errors: stats.errors ? (stats.errors as object) : undefined,
     },
   });
@@ -76,6 +77,7 @@ export class ScrapeOrchestrator {
       await completeScrapeRun(run.id, 'COMPLETED', {
         itemsProcessed: result.profileUrls.length,
         itemsCreated: created,
+        costUsd: result.costUsd,
       });
 
       return { found: result.profileUrls.length, created };
@@ -128,6 +130,7 @@ export class ScrapeOrchestrator {
       await completeScrapeRun(run.id, 'COMPLETED', {
         itemsProcessed: urls.length,
         itemsUpdated: updated,
+        costUsd: result.costUsd,
       });
 
       return { updated };
@@ -172,6 +175,7 @@ export class ScrapeOrchestrator {
         itemsProcessed: employees.length,
         itemsCreated: created,
         itemsUpdated: updated,
+        costUsd: result.costUsd,
       });
 
       return { created, updated };

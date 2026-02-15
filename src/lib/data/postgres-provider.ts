@@ -12,6 +12,11 @@ const DEPARTMENT_MAP: Record<Department, Employee['department']> = {
   SALES: 'Sales',
   PRODUCT: 'Product',
   DESIGN: 'Design',
+  LEADERSHIP: 'Leadership',
+  OPERATIONS: 'Operations',
+  PEOPLE: 'People',
+  PARTNERSHIPS: 'Partnerships',
+  DATA: 'Data',
   OTHER: 'Other',
 };
 
@@ -29,7 +34,7 @@ function mapEmployee(e: PrismaEmployee): Employee {
     lastName: e.lastName,
     fullName: e.fullName,
     jobTitle: e.jobTitle,
-    department: DEPARTMENT_MAP[e.department] ?? 'Design',
+    department: DEPARTMENT_MAP[e.department] ?? 'Other',
     linkedinProfileUrl: e.linkedinUrl,
     avatarUrl: e.avatarUrl,
     isActive: e.isActive,

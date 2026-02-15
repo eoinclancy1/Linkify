@@ -24,6 +24,7 @@ interface ScrapeRun {
   itemsProcessed: number;
   itemsCreated: number;
   itemsUpdated: number;
+  costUsd: number;
   startedAt: string;
   completedAt: string | null;
 }
@@ -382,6 +383,7 @@ export default function SettingsPage() {
                       {run.itemsProcessed > 0 && ` · ${run.itemsProcessed} processed`}
                       {run.itemsCreated > 0 && ` · ${run.itemsCreated} created`}
                       {run.itemsUpdated > 0 && ` · ${run.itemsUpdated} updated`}
+                      {run.costUsd > 0 && ` · $${run.costUsd.toFixed(2)}`}
                     </p>
                   </div>
                 </div>

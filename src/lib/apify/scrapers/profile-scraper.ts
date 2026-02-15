@@ -53,21 +53,74 @@ export interface MappedProfile {
 
 function inferDepartment(headline: string): Department {
   const h = headline.toLowerCase();
-  if (/engineer|developer|software|devops|sre|backend|frontend|full.?stack|architect|cto/i.test(h)) {
-    return 'ENGINEERING';
+
+  // LEADERSHIP — match founders, C-suite, board members first
+  // "chief of staff" is OPERATIONS, not LEADERSHIP, so exclude it here
+  if (/\b(ceo|coo|cfo|cto|cpo|cmo|co-?founder|founder|board\b)/i.test(h)) {
+    return 'LEADERSHIP';
   }
-  if (/market|growth|content|seo|brand|social media|cmо/i.test(h)) {
-    return 'MARKETING';
+  if (/\b(chief)\b/i.test(h) && !/chief of staff/i.test(h)) {
+    return 'LEADERSHIP';
   }
-  if (/sales|account exec|business develop|sdr|bdr|revenue|ae\b/i.test(h)) {
-    return 'SALES';
+  if (/\bleading\b.*\b(vertical|startup|company)/i.test(h)) {
+    return 'LEADERSHIP';
   }
-  if (/product|pm\b|product manag|product lead|cpo/i.test(h)) {
-    return 'PRODUCT';
+
+  // PEOPLE — talent, recruiting, HR
+  if (/\b(talent|recruiting|recruiter|hr\b|human resources|people\b|\bta\b)/i.test(h)) {
+    return 'PEOPLE';
   }
-  if (/design|ux|ui|creative|illustrat/i.test(h)) {
+
+  // PARTNERSHIPS — alliances, channel, partnerships
+  if (/\b(partner(?:ship)?s?|alliances|channel\b)/i.test(h)) {
+    return 'PARTNERSHIPS';
+  }
+
+  // DATA — analytics, dbt, BI, data
+  if (/\b(data\b|analytics|dbt|business intelligence|\bbi\b)/i.test(h)) {
+    return 'DATA';
+  }
+
+  // OPERATIONS — ops, finance, chief of staff, strategy, revops
+  if (/\b(operations|ops\b|finance|chief of staff|strategy|revops|expansion)/i.test(h)) {
+    return 'OPERATIONS';
+  }
+
+  // DESIGN — check "creative director" before MARKETING grabs "brand"
+  if (/\bcreative director\b/i.test(h)) {
     return 'DESIGN';
   }
+
+  // MARKETING — growth, content, SEO, brand, social, AEO, GEO, GTM
+  // Must come before ENGINEERING so "content engineering" and "GTM engineering" match here
+  if (/\b(market|growth|content|seo|brand|social|cmo|aeo|geo|gtm)\b/i.test(h)) {
+    return 'MARKETING';
+  }
+
+  // ENGINEERING — software, devops, SRE, etc.
+  // "architect" only matches with software/solutions/system prefix
+  if (/\b(engineer|developer|software|devops|sre|backend|frontend|full.?stack)\b/i.test(h)) {
+    return 'ENGINEERING';
+  }
+  if (/\b(software|solutions?|systems?)\s+architect/i.test(h)) {
+    return 'ENGINEERING';
+  }
+
+  // SALES
+  if (/\b(sales|account exec|business develop|sdr|bdr|revenue|ae)\b/i.test(h)) {
+    return 'SALES';
+  }
+
+  // PRODUCT
+  if (/\b(product|pm)\b|product manag|product lead/i.test(h)) {
+    return 'PRODUCT';
+  }
+
+  // DESIGN
+  if (/\b(design|ux|ui|creative|illustrat)/i.test(h)) {
+    return 'DESIGN';
+  }
+
   return 'OTHER';
 }
 
@@ -111,11 +164,13 @@ export function mapProfileToEmployee(profile: ApifyProfileOutput): MappedProfile
 export interface ProfileScrapeResult {
   runIds: string[];
   profiles: MappedProfile[];
+  costUsd: number;
 }
 
 export async function scrapeProfiles(profileUrls: string[]): Promise<ProfileScrapeResult> {
   const allProfiles: MappedProfile[] = [];
   const runIds: string[] = [];
+  let totalCost = 0;
 
   // Batch profiles
   for (let i = 0; i < profileUrls.length; i += BATCH_SIZE) {
@@ -127,6 +182,7 @@ export async function scrapeProfiles(profileUrls: string[]): Promise<ProfileScra
     );
 
     runIds.push(result.runId);
+    totalCost += result.costUsd;
 
     for (const item of result.items) {
       const mapped = mapProfileToEmployee(item);
@@ -139,5 +195,5 @@ export async function scrapeProfiles(profileUrls: string[]): Promise<ProfileScra
     }
   }
 
-  return { runIds, profiles: allProfiles };
+  return { runIds, profiles: allProfiles, costUsd: totalCost };
 }

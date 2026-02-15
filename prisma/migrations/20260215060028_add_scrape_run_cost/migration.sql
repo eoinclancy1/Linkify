@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "ScrapeRun" ADD COLUMN     "costUsd" DOUBLE PRECISION NOT NULL DEFAULT 0;

@@ -72,9 +72,24 @@ const jobTitlesByDepartment: Record<Employee['department'], string[]> = {
     'UX Designer', 'UI Designer', 'Senior Product Designer',
     'Design Lead', 'UX Researcher', 'Visual Designer',
   ],
+  Leadership: [
+    'CEO', 'Co-founder', 'CTO', 'VP of Engineering',
+  ],
+  Operations: [
+    'Operations Manager', 'Chief of Staff', 'Finance Lead',
+    'Strategy & Expansion', 'RevOps Manager',
+  ],
+  People: [
+    'Head of Talent Acquisition', 'HR Manager', 'Recruiter',
+  ],
+  Partnerships: [
+    'VP of Partnerships', 'Channel Manager', 'Alliances Lead',
+  ],
+  Data: [
+    'Data Analyst', 'Analytics Engineer', 'BI Developer',
+  ],
   Other: [
-    'Operations Manager', 'Office Manager', 'Executive Assistant',
-    'HR Manager', 'Finance Lead', 'General Manager',
+    'Office Manager', 'Executive Assistant', 'General Manager',
   ],
 };
 

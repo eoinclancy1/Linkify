@@ -14,6 +14,11 @@ enum Department {
   SALES
   PRODUCT
   DESIGN
+  LEADERSHIP
+  OPERATIONS
+  PEOPLE
+  PARTNERSHIPS
+  DATA
   OTHER
 }
 
@@ -150,6 +155,7 @@ model ScrapeRun {
   itemsProcessed Int          @default(0)
   itemsCreated   Int          @default(0)
   itemsUpdated   Int          @default(0)
+  costUsd        Float        @default(0)
   errors         Json?
 
   startedAt   DateTime  @default(now())
