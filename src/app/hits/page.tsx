@@ -38,11 +38,12 @@ export default function HitsPage() {
 
   // ── Carousel data ──
 
-  // "Employees" — group by employee, show top hit per employee (exclude Content Engineering)
+  // "Employees" — group by employee, show top hit per employee (exclude Content Engineering and external)
   const employeeHits = useMemo(() => {
     if (!hits) return [];
     const byEmployee = new Map<string, Hit>();
     for (const h of hits) {
+      if (h.isExternal || !h.authorId) continue;
       if (h.department === 'Content Engineering') continue;
       const existing = byEmployee.get(h.authorId);
       if (!existing || h.likes > existing.likes) {

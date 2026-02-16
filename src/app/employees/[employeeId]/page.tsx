@@ -145,18 +145,25 @@ export default function EmployeeDetailPage({
   const weeklyData = (() => {
     if (!posts) return [];
     const now = new Date();
+    // Align to Monday of the current week
+    const todayDay = now.getDay(); // 0=Sun
+    const currentMonday = new Date(now);
+    currentMonday.setDate(now.getDate() - ((todayDay + 6) % 7));
+    currentMonday.setHours(0, 0, 0, 0);
+
     const weeks: { week: string; posts: number }[] = [];
     for (let i = 11; i >= 0; i--) {
-      const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - i * 7);
+      const weekStart = new Date(currentMonday);
+      weekStart.setDate(currentMonday.getDate() - i * 7);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
       const count = posts.filter((p: { publishedAt: string }) => {
         const d = new Date(p.publishedAt);
         return d >= weekStart && d < weekEnd;
       }).length;
+      const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       weeks.push({
-        week: `W${12 - i}`,
+        week: label,
         posts: count,
       });
     }

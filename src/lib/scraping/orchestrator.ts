@@ -5,6 +5,12 @@ import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/po
 import { searchMentionPosts } from '@/lib/apify/scrapers/mention-search';
 import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
 
+/** Extract the /in/username slug from a LinkedIn profile URL for fuzzy matching */
+function extractLinkedinSlug(url: string): string | null {
+  const match = url.match(/linkedin\.com\/in\/([^/?#]+)/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
 async function getConfig() {
   const config = await prisma.appConfig.findUnique({ where: { id: 'singleton' } });
   return config ?? { companyLinkedinUrl: '', companyName: '', scrapeEnabled: true, scrapeHistoryDays: 30 };
@@ -286,19 +292,27 @@ export class ScrapeOrchestrator {
       let created = 0;
       let updated = 0;
 
+      // Pre-load all employee LinkedIn URL slugs for fuzzy matching
+      const allEmployees = await prisma.employee.findMany({
+        select: { id: true, linkedinUrl: true },
+      });
+      const employeeBySlug = new Map<string, string>();
+      for (const emp of allEmployees) {
+        const slug = extractLinkedinSlug(emp.linkedinUrl);
+        if (slug) employeeBySlug.set(slug, emp.id);
+      }
+
       for (const post of result.posts) {
-        // Check if the author is a known employee/advisor by LinkedIn URL
+        // Check if the author is a known employee/advisor by LinkedIn URL slug
         let authorId: string | null = null;
         let isExternal = true;
 
         if (post.authorLinkedinUrl) {
-          const existingEmployee = await prisma.employee.findUnique({
-            where: { linkedinUrl: post.authorLinkedinUrl },
-          });
+          const slug = extractLinkedinSlug(post.authorLinkedinUrl);
+          const matchedId = slug ? employeeBySlug.get(slug) : undefined;
 
-          if (existingEmployee) {
-            // Author is a known employee or advisor
-            authorId = existingEmployee.id;
+          if (matchedId) {
+            authorId = matchedId;
             isExternal = false;
           }
         }
@@ -322,6 +336,9 @@ export class ScrapeOrchestrator {
         });
 
         if (existing) {
+          // If the post already has an authorId (from post scraper), preserve it
+          // — don't let a mention search URL mismatch overwrite a known author
+          const preserveAuthor = existing.authorId && !authorId;
           await prisma.post.update({
             where: { linkedinPostId: post.linkedinPostId },
             data: {
@@ -333,9 +350,7 @@ export class ScrapeOrchestrator {
               shares: post.shares,
               engagementScore: post.engagementScore,
               mentionsCompany: true,
-              isExternal,
-              authorId,
-              ...externalFields,
+              ...(preserveAuthor ? {} : { isExternal, authorId, ...externalFields }),
               mediaUrls: post.mediaUrls ?? undefined,
               hashtags: post.hashtags ?? undefined,
             },

@@ -186,16 +186,22 @@ export class PostgresDataProvider implements DataProvider {
   }
 
   async getPostingActivity(employeeId: string): Promise<PostingActivity[]> {
-    const activities = await prisma.postingActivity.findMany({
-      where: { employeeId },
-      orderBy: { date: 'asc' },
+    // Derive directly from posts so data is always available, even before
+    // refreshPostingActivities() has run after a scrape.
+    const posts = await prisma.post.findMany({
+      where: { authorId: employeeId },
+      select: { publishedAt: true },
     });
 
-    return activities.map((a) => ({
-      employeeId: a.employeeId,
-      date: a.date.toISOString().slice(0, 10),
-      postCount: a.postCount,
-    }));
+    const dateMap = new Map<string, number>();
+    for (const post of posts) {
+      const date = post.publishedAt.toISOString().slice(0, 10);
+      dateMap.set(date, (dateMap.get(date) ?? 0) + 1);
+    }
+
+    return Array.from(dateMap.entries())
+      .map(([date, postCount]) => ({ employeeId, date, postCount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
