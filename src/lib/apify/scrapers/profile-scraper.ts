@@ -110,6 +110,16 @@ function parseStartDate(startDate: unknown): Date | null {
   return new Date(year, month, 1);
 }
 
+/** Infer role from headline — advisors, consultants, fractional roles → ADVISOR */
+export function inferRole(headline: string): 'EMPLOYEE' | 'ADVISOR' {
+  const h = headline.toLowerCase();
+  if (/\b(advisor|consultant|fractional)\b/i.test(h) &&
+      !/\b(vp|vice president|head of|director|manager|lead)\b/i.test(h)) {
+    return 'ADVISOR';
+  }
+  return 'EMPLOYEE';
+}
+
 function inferDepartment(headline: string): Department {
   const h = headline.toLowerCase();
 

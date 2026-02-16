@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { discoverEmployees } from '@/lib/apify/scrapers/employee-discovery';
-import { scrapeProfiles, extractCompanyStartDate } from '@/lib/apify/scrapers/profile-scraper';
+import { scrapeProfiles, extractCompanyStartDate, inferRole } from '@/lib/apify/scrapers/profile-scraper';
 import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
 import { searchMentionPosts } from '@/lib/apify/scrapers/mention-search';
 import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
@@ -164,7 +164,7 @@ export class ScrapeOrchestrator {
     try {
       const employees = await prisma.employee.findMany({
         where: { isActive: true },
-        select: { id: true, linkedinUrl: true },
+        select: { id: true, linkedinUrl: true, isManuallyAdded: true },
       });
 
       if (employees.length === 0) {
@@ -192,6 +192,11 @@ export class ScrapeOrchestrator {
           config.companyLinkedinUrl,
         );
 
+        // Auto-infer role from headline for discovered employees (not manually added)
+        const roleUpdate = !employee.isManuallyAdded
+          ? { role: inferRole(profile.headline) as 'EMPLOYEE' | 'ADVISOR' }
+          : {};
+
         await prisma.employee.update({
           where: { id: employee.id },
           data: {
@@ -208,6 +213,7 @@ export class ScrapeOrchestrator {
             skills: (profile.skills as Prisma.InputJsonValue) ?? undefined,
             companyStartDate,
             lastScrapedAt: new Date(),
+            ...roleUpdate,
           },
         });
         updated++;
