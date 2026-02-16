@@ -110,13 +110,23 @@ export class ScrapeOrchestrator {
 
       let updated = 0;
       for (const profile of result.profiles) {
+        // Look up employee first — the scraper may return a URL that doesn't
+        // exactly match (trailing slash, redirects, etc.)
+        const employee = await prisma.employee.findUnique({
+          where: { linkedinUrl: profile.linkedinUrl },
+        });
+        if (!employee) {
+          console.warn(`[profile-scrape] No employee found for URL: ${profile.linkedinUrl}, skipping`);
+          continue;
+        }
+
         const companyStartDate = extractCompanyStartDate(
           profile.experience,
           config.companyLinkedinUrl,
         );
 
         await prisma.employee.update({
-          where: { linkedinUrl: profile.linkedinUrl },
+          where: { id: employee.id },
           data: {
             firstName: profile.firstName,
             lastName: profile.lastName,
