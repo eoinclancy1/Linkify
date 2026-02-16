@@ -31,44 +31,44 @@ const POST_TIME_RANGES = [
   { label: '30d', value: 30 },
 ] as const;
 
-export default function ContentEngineeringPage() {
+export default function AdvisorsPage() {
   const {
     searchQuery, setSearchQuery,
-    contentEngTab, setContentEngTab,
+    advisorTab, setAdvisorTab,
   } = useAppStore();
   const [postsTimeRange, setPostsTimeRange] = useState<7 | 14 | 30>(30);
 
-  const { data: employees, isLoading: empLoading } = useSWR(
-    '/api/employees?department=Content Engineering',
+  const { data: advisors, isLoading: empLoading } = useSWR(
+    '/api/employees?role=advisor',
     fetcher,
   );
   const { data: streaks } = useSWR('/api/streaks', fetcher);
   const { data: config } = useSWR<{ mentionBonusMultiplier?: number }>('/api/config', fetcher);
   const mentionMultiplier = config?.mentionBonusMultiplier ?? 2.0;
 
-  // Build employee ID set for filtering posts
-  const employeeIds = useMemo(() => {
-    if (!employees) return new Set<string>();
-    return new Set<string>(employees.map((e: AnyEmployee) => e.id));
-  }, [employees]);
+  // Build advisor ID set for filtering posts
+  const advisorIds = useMemo(() => {
+    if (!advisors) return new Set<string>();
+    return new Set<string>(advisors.map((e: AnyEmployee) => e.id));
+  }, [advisors]);
 
   const { data: allPostsRaw } = useSWR('/api/posts?range=90', fetcher);
   const { data: posts30Raw } = useSWR('/api/posts?range=30', fetcher);
 
-  // Filter posts to only Content Engineering members
+  // Filter posts to only advisors
   const allPosts = useMemo(() => {
     if (!allPostsRaw) return null;
-    return allPostsRaw.filter((p: AnyPost) => employeeIds.has(p.authorId));
-  }, [allPostsRaw, employeeIds]);
+    return allPostsRaw.filter((p: AnyPost) => advisorIds.has(p.authorId));
+  }, [allPostsRaw, advisorIds]);
 
   const posts30 = useMemo(() => {
     if (!posts30Raw) return null;
-    return posts30Raw.filter((p: AnyPost) => employeeIds.has(p.authorId));
-  }, [posts30Raw, employeeIds]);
+    return posts30Raw.filter((p: AnyPost) => advisorIds.has(p.authorId));
+  }, [posts30Raw, advisorIds]);
 
   // ── Overview tab data ──
   const gridData = useMemo(() => {
-    if (!employees || !streaks || !posts30) return [];
+    if (!advisors || !streaks || !posts30) return [];
 
     const streakMap: Record<string, { currentStreak: number; isActive: boolean }> = {};
     for (const s of streaks) {
@@ -77,7 +77,7 @@ export default function ContentEngineeringPage() {
 
     const now = new Date();
     const weeklyPosts: Record<string, number[]> = {};
-    for (const e of employees) weeklyPosts[e.id] = [0, 0, 0, 0];
+    for (const e of advisors) weeklyPosts[e.id] = [0, 0, 0, 0];
     for (const p of posts30) {
       const diff = Math.floor((now.getTime() - new Date(p.publishedAt).getTime()) / (7 * 86400000));
       if (diff < 4 && weeklyPosts[p.authorId]) weeklyPosts[p.authorId][3 - diff]++;
@@ -92,7 +92,7 @@ export default function ContentEngineeringPage() {
       }
     }
 
-    let result = employees.map((e: AnyEmployee) => ({
+    let result = advisors.map((e: AnyEmployee) => ({
       id: e.id,
       fullName: e.fullName,
       jobTitle: e.jobTitle,
@@ -117,11 +117,11 @@ export default function ContentEngineeringPage() {
     result.sort((a: AnyEmployee, b: AnyEmployee) => a.fullName.localeCompare(b.fullName));
 
     return result;
-  }, [employees, streaks, posts30, searchQuery]);
+  }, [advisors, streaks, posts30, searchQuery]);
 
   // ── Leaderboard tab data ──
   const leaderboardData = useMemo((): LeaderboardEntry[] => {
-    if (!employees || !allPosts) return [];
+    if (!advisors || !allPosts) return [];
 
     const now = new Date();
     const startOfWeek = new Date(now);
@@ -136,18 +136,18 @@ export default function ContentEngineeringPage() {
 
     // Build start date map for filtering pre-employment posts
     const startDateMap: Record<string, Date | null> = {};
-    for (const e of employees) {
+    for (const e of advisors) {
       startDateMap[e.id] = e.companyStartDate ? new Date(e.companyStartDate) : null;
     }
 
-    // Group posts by employee, filtering out posts before company start date
-    const postsByEmployee: Record<string, AnyPost[]> = {};
-    for (const e of employees) postsByEmployee[e.id] = [];
+    // Group posts by advisor, filtering out posts before company start date
+    const postsByAdvisor: Record<string, AnyPost[]> = {};
+    for (const e of advisors) postsByAdvisor[e.id] = [];
     for (const p of allPosts) {
-      if (!postsByEmployee[p.authorId]) continue;
+      if (!postsByAdvisor[p.authorId]) continue;
       const startDate = startDateMap[p.authorId];
       if (startDate && new Date(p.publishedAt) < startDate) continue;
-      postsByEmployee[p.authorId].push(p);
+      postsByAdvisor[p.authorId].push(p);
     }
 
     function calcPoints(post: AnyPost): number {
@@ -186,8 +186,8 @@ export default function ContentEngineeringPage() {
       return streak;
     }
 
-    const entries: LeaderboardEntry[] = employees.map((e: AnyEmployee) => {
-      const empPosts = postsByEmployee[e.id] || [];
+    const entries: LeaderboardEntry[] = advisors.map((e: AnyEmployee) => {
+      const empPosts = postsByAdvisor[e.id] || [];
       const totalPoints = empPosts.reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
       const weeklyPoints = empPosts
         .filter((p: AnyPost) => new Date(p.publishedAt) >= startOfWeek)
@@ -228,14 +228,14 @@ export default function ContentEngineeringPage() {
     }
 
     return entries;
-  }, [employees, allPosts, searchQuery, mentionMultiplier]);
+  }, [advisors, allPosts, searchQuery, mentionMultiplier]);
 
   // ── All Posts tab data ──
   const allPostsData = useMemo((): PostEntry[] => {
-    if (!employees || !allPosts) return [];
+    if (!advisors || !allPosts) return [];
 
     const empMap: Record<string, { fullName: string; avatarUrl: string }> = {};
-    for (const e of employees) empMap[e.id] = { fullName: e.fullName, avatarUrl: e.avatarUrl };
+    for (const e of advisors) empMap[e.id] = { fullName: e.fullName, avatarUrl: e.avatarUrl };
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - postsTimeRange);
@@ -268,22 +268,22 @@ export default function ContentEngineeringPage() {
     }
 
     return result;
-  }, [employees, allPosts, searchQuery, postsTimeRange]);
+  }, [advisors, allPosts, searchQuery, postsTimeRange]);
 
   const isLoading = empLoading;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Content Engineering" accentLabel="Department" icon={Users} statValue={employees?.length} statLabel="members" />
+      <PageHeader title="Advisors" accentLabel="Network" icon={Users} statValue={advisors?.length} statLabel="advisors" />
 
       {/* Tabs */}
       <div className="flex gap-2">
         {TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => setContentEngTab(tab.value)}
+            onClick={() => setAdvisorTab(tab.value)}
             className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
-              contentEngTab === tab.value
+              advisorTab === tab.value
                 ? 'bg-white text-black'
                 : 'bg-elevated text-neutral-300 hover:bg-highlight hover:text-white'
             }`}
@@ -300,16 +300,16 @@ export default function ContentEngineeringPage() {
           <input
             type="text"
             placeholder={
-              contentEngTab === 'posts'
+              advisorTab === 'posts'
                 ? 'Search posts or posters...'
-                : 'Search members...'
+                : 'Search advisors...'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-elevated rounded-full py-3 pl-12 pr-4 text-white placeholder-neutral-400 outline-none focus:ring-2 focus:ring-linkify-green transition-all"
           />
         </div>
-        {contentEngTab === 'posts' && (
+        {advisorTab === 'posts' && (
           <div className="flex gap-1 flex-shrink-0">
             {POST_TIME_RANGES.map((range) => (
               <button
@@ -329,7 +329,7 @@ export default function ContentEngineeringPage() {
       </div>
 
       {/* Tab content */}
-      {contentEngTab === 'overview' && (
+      {advisorTab === 'overview' && (
         <>
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -343,7 +343,7 @@ export default function ContentEngineeringPage() {
         </>
       )}
 
-      {contentEngTab === 'leaderboard' && (
+      {advisorTab === 'leaderboard' && (
         isLoading ? (
           <div className="space-y-2">
             {[...Array(10)].map((_, i) => (
@@ -355,7 +355,7 @@ export default function ContentEngineeringPage() {
         )
       )}
 
-      {contentEngTab === 'posts' && (
+      {advisorTab === 'posts' && (
         isLoading ? (
           <div className="space-y-2">
             {[...Array(10)].map((_, i) => (

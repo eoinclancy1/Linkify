@@ -34,7 +34,9 @@ export default function LeaderboardPage() {
   const mentionsList = (mentions || []) as {
     id: string;
     rank: number;
-    author: { fullName: string; avatarUrl: string };
+    authorName: string;
+    authorAvatarUrl: string;
+    author: { fullName: string; avatarUrl: string } | null;
     post: {
       textContent: string;
       url: string;
@@ -62,8 +64,8 @@ export default function LeaderboardPage() {
           <div className="flex-shrink-0 w-48 h-48 rounded-lg shadow-2xl shadow-black/60 overflow-hidden bg-gradient-to-br from-[#4ade80]/20 to-[#166534]/40">
             {topMention ? (
               <Image
-                src={topMention.author.avatarUrl}
-                alt={topMention.author.fullName}
+                src={topMention.authorAvatarUrl}
+                alt={topMention.authorName}
                 width={192}
                 height={192}
                 className="w-full h-full object-cover"
@@ -89,7 +91,7 @@ export default function LeaderboardPage() {
                 <>
                   <span className="inline-flex items-center gap-1.5">
                     <Trophy className="w-4 h-4 text-[#4ade80]" />
-                    <span className="font-semibold text-white">{topMention.author.fullName}</span>
+                    <span className="font-semibold text-white">{topMention.authorName}</span>
                   </span>
                   <span className="text-neutral-500">&middot;</span>
                 </>
@@ -160,8 +162,8 @@ export default function LeaderboardPage() {
           mentions={mentionsList.map((m) => ({
             id: m.id,
             rank: m.rank,
-            authorName: m.author.fullName,
-            authorAvatar: m.author.avatarUrl,
+            authorName: m.authorName,
+            authorAvatar: m.authorAvatarUrl,
             postExcerpt: m.post.textContent,
             likes: m.post.engagement.likes,
             comments: m.post.engagement.comments,

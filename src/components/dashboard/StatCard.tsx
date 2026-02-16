@@ -15,8 +15,10 @@ interface StatCardProps {
 
 export default function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
-    <div className="bg-surface rounded-lg p-6 relative">
-      <div className="absolute top-4 right-4 bg-linkify-green/10 text-linkify-green rounded-full p-2">
+    <div className="bg-surface rounded-lg p-6 relative overflow-hidden">
+      <div className="absolute -top-6 -right-6 w-20 h-20 bg-linkify-green/5 rounded-full blur-2xl" />
+      <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-linkify-green/40 via-linkify-green/10 to-transparent" />
+      <div className="absolute top-4 right-4 bg-linkify-green/15 text-linkify-green rounded-full p-2.5">
         <Icon className="w-5 h-5" />
       </div>
 

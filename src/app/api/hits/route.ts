@@ -12,9 +12,9 @@ export async function GET() {
 
   // Employee posts with 100+ likes
   const employeeHits = posts
-    .filter(p => p.engagement.likes >= 100)
+    .filter(p => p.engagement.likes >= 100 && !p.isExternal)
     .map(p => {
-      const emp = empMap.get(p.authorId);
+      const emp = p.authorId ? empMap.get(p.authorId) : null;
       return {
         id: p.id,
         authorId: p.authorId,
@@ -42,10 +42,10 @@ export async function GET() {
       .filter(p => p.engagement.likes >= 100)
       .map(p => ({
         id: p.id,
-        authorId: p.authorId,
-        authorName: p.authorName,
-        authorAvatar: p.authorAvatar,
-        authorTitle: p.authorTitle,
+        authorId: null,
+        authorName: p.externalAuthorName ?? 'Unknown',
+        authorAvatar: p.externalAuthorAvatarUrl ?? '',
+        authorTitle: p.externalAuthorHeadline ?? '',
         department: '',
         textContent: p.textContent,
         publishedAt: p.publishedAt,
@@ -58,19 +58,18 @@ export async function GET() {
         isExternal: true,
       }));
   } else {
-    // Fetch external posts from DB (external authors not included in getEmployees())
+    // Fetch external posts from DB using inline fields
     const { prisma } = await import('@/lib/db/prisma');
     const externalPosts = await prisma.post.findMany({
       where: { isExternal: true, likes: { gte: 100 } },
-      include: { author: true },
       orderBy: { likes: 'desc' },
     });
     externalHits = externalPosts.map(p => ({
       id: p.id,
       authorId: p.authorId,
-      authorName: p.author.fullName,
-      authorAvatar: p.author.avatarUrl,
-      authorTitle: p.author.jobTitle,
+      authorName: p.externalAuthorName ?? 'Unknown',
+      authorAvatar: p.externalAuthorAvatarUrl ?? '',
+      authorTitle: p.externalAuthorHeadline ?? '',
       department: '',
       textContent: p.textContent,
       publishedAt: p.publishedAt.toISOString(),

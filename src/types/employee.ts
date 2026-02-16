@@ -9,4 +9,5 @@ export interface Employee {
   avatarUrl: string;
   companyStartDate?: string;
   isActive: boolean;
+  role: 'employee' | 'advisor';
 }

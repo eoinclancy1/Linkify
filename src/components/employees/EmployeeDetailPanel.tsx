@@ -20,10 +20,11 @@ interface StatItemProps {
 
 function StatItem({ icon, label, value }: StatItemProps) {
   return (
-    <div className="bg-surface rounded-lg p-4 flex flex-col items-center gap-2 text-center">
-      <div className="text-neutral-400">{icon}</div>
-      <span className="text-2xl font-bold text-white">{value}</span>
-      <span className="text-xs text-neutral-400">{label}</span>
+    <div className="bg-surface rounded-lg p-4 flex flex-col items-center gap-2 text-center relative overflow-hidden">
+      <div className="absolute -top-4 -right-4 w-16 h-16 bg-linkify-green/5 rounded-full blur-2xl" />
+      <div className="relative text-neutral-400">{icon}</div>
+      <span className="relative text-2xl font-extrabold text-white">{value}</span>
+      <span className="relative text-xs text-neutral-400">{label}</span>
     </div>
   );
 }
@@ -32,15 +33,22 @@ export default function EmployeeDetailPanel({ employee, streak, posts30dCount, a
   return (
     <div>
       {/* Hero Section */}
-      <div className="bg-gradient-to-b from-linkify-green/20 to-transparent rounded-lg p-8">
-        <div className="flex flex-col items-center text-center">
-          <Avatar src={employee.avatarUrl} name={employee.fullName} size="xl" />
-          <h1 className="mt-4 text-2xl font-bold text-white">{employee.fullName}</h1>
-          <p className="mt-1 text-neutral-400">{employee.jobTitle}</p>
-          <div className="mt-2">
-            <Badge variant="neutral">{employee.department}</Badge>
+      <div className="relative bg-gradient-to-br from-[#0a2e1a] via-[#0d3b20] to-[#14532d] rounded-xl overflow-hidden">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#4ade80]/8 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-[#22c55e]/6 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#4ade80]/10 rounded-full blur-3xl" />
+        <div className="relative z-10 p-8">
+          <div className="flex flex-col items-center text-center">
+            <Avatar src={employee.avatarUrl} name={employee.fullName} size="xl" className="ring-2 ring-[#4ade80]/20 shadow-2xl shadow-black/60" />
+            <h1 className="mt-4 text-2xl font-extrabold text-white">{employee.fullName}</h1>
+            <p className="mt-1 text-neutral-400">{employee.jobTitle}</p>
+            <div className="mt-2">
+              <Badge variant="neutral">{employee.department}</Badge>
+            </div>
           </div>
         </div>
+        <div className="h-6 bg-gradient-to-b from-transparent to-[#121212]" />
       </div>
 
       {/* Stats Row */}

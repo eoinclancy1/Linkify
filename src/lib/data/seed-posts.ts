@@ -179,10 +179,7 @@ export const seedExternalPosts = externalAuthors.map((author, i) => {
 
   return {
     id: `ext-post-${String(i + 1).padStart(3, '0')}`,
-    authorId: author.id,
-    authorName: author.name,
-    authorAvatar: author.avatar,
-    authorTitle: author.title,
+    authorId: null as string | null,
     type: 'original' as PostType,
     textContent: externalPostTemplates[i],
     publishedAt: date.toISOString(),
@@ -194,5 +191,10 @@ export const seedExternalPosts = externalAuthors.map((author, i) => {
       engagementScore: likes + comments * 2 + shares * 3,
     },
     mentionsCompany: true,
+    isExternal: true,
+    externalAuthorName: author.name,
+    externalAuthorUrl: `https://linkedin.com/in/${author.id}`,
+    externalAuthorAvatarUrl: author.avatar,
+    externalAuthorHeadline: author.title,
   };
 });

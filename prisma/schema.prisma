@@ -46,6 +46,11 @@ enum ScrapeStatus {
   PARTIAL
 }
 
+enum EmployeeRole {
+  EMPLOYEE
+  ADVISOR
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model Employee {
@@ -64,7 +69,7 @@ model Employee {
   skills          Json?
   isActive        Boolean    @default(true)
   isManuallyAdded Boolean    @default(false)
-  isExternalAuthor Boolean   @default(false)
+  role            EmployeeRole @default(EMPLOYEE)
   companyStartDate DateTime?
   lastScrapedAt   DateTime?
 
@@ -77,14 +82,15 @@ model Employee {
 
   @@index([isActive])
   @@index([department])
+  @@index([role])
 }
 
 model Post {
   id              String   @id @default(cuid())
   linkedinPostId  String   @unique
   linkedinUrl     String   @unique
-  authorId        String
-  author          Employee @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId        String?
+  author          Employee? @relation(fields: [authorId], references: [id], onDelete: SetNull)
   type            PostType @default(ORIGINAL)
   textContent     String   @default("")
   publishedAt     DateTime
@@ -96,6 +102,11 @@ model Post {
   mediaUrls       Json?
   hashtags        Json?
   isExternal      Boolean  @default(false)
+
+  externalAuthorName       String?
+  externalAuthorUrl        String?
+  externalAuthorAvatarUrl  String?
+  externalAuthorHeadline   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -113,8 +124,8 @@ model CompanyMention {
   id          String   @id @default(cuid())
   postId      String
   post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorId    String
-  author      Employee @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String?
+  author      Employee? @relation(fields: [authorId], references: [id], onDelete: SetNull)
   publishedAt DateTime
 
   createdAt DateTime @default(now())

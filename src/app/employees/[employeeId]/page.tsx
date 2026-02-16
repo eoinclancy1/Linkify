@@ -38,15 +38,19 @@ function timeAgo(dateStr: string): string {
   return formatDate(dateStr);
 }
 
-function HeroPostCard({ post, label, icon, accentColor }: {
+function HeroPostCard({ post, label, icon, accentHex, gradientFrom, gradientVia, gradientTo, glowColor }: {
   post: Post | null;
   label: string;
   icon: React.ReactNode;
-  accentColor: string;
+  accentHex: string;
+  gradientFrom: string;
+  gradientVia: string;
+  gradientTo: string;
+  glowColor: string;
 }) {
   if (!post) {
     return (
-      <div className="bg-surface rounded-lg p-6 flex flex-col">
+      <div className="bg-surface rounded-xl p-6 flex flex-col">
         <div className="flex items-center gap-2 mb-4">
           {icon}
           <h3 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide">{label}</h3>
@@ -57,40 +61,46 @@ function HeroPostCard({ post, label, icon, accentColor }: {
   }
 
   return (
-    <div className={`bg-surface rounded-lg p-6 flex flex-col border-t-2 ${accentColor}`}>
-      <div className="flex items-center gap-2 mb-4">
-        {icon}
-        <h3 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide">{label}</h3>
-        <span className="ml-auto text-xs text-neutral-500">{timeAgo(post.publishedAt)}</span>
-      </div>
+    <div className={`relative ${gradientFrom} ${gradientVia} ${gradientTo} bg-gradient-to-br rounded-xl overflow-hidden`}>
+      <div className="absolute inset-0 bg-black/20" />
+      <div className={`absolute -top-24 -right-24 w-48 h-48 ${glowColor} rounded-full blur-3xl`} />
+      <div className={`absolute -bottom-16 -left-16 w-36 h-36 ${glowColor} rounded-full blur-3xl`} />
+      <div className="relative z-10 p-6 flex flex-col">
+        <div className="flex items-center gap-2 mb-4">
+          {icon}
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: accentHex }}>{label}</h3>
+          <span className="ml-auto text-xs text-neutral-500">{timeAgo(post.publishedAt)}</span>
+        </div>
 
-      <p className="text-sm text-neutral-200 leading-relaxed flex-1">
-        {getExcerpt(post.textContent, 200)}
-      </p>
+        <p className="text-sm text-neutral-200 leading-relaxed flex-1">
+          {getExcerpt(post.textContent, 200)}
+        </p>
 
-      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-elevated text-xs text-neutral-400">
-        <span className="inline-flex items-center gap-1">
-          <ThumbsUp className="h-3.5 w-3.5" />
-          {post.engagement.likes}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <MessageCircle className="h-3.5 w-3.5" />
-          {post.engagement.comments}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <Share2 className="h-3.5 w-3.5" />
-          {post.engagement.shares}
-        </span>
-        <a
-          href={post.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="ml-auto inline-flex items-center gap-1 text-linkify-green hover:underline"
-        >
-          View on LinkedIn
-          <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/10 text-xs text-neutral-400">
+          <span className="inline-flex items-center gap-1">
+            <ThumbsUp className="h-3.5 w-3.5" />
+            {post.engagement.likes}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <MessageCircle className="h-3.5 w-3.5" />
+            {post.engagement.comments}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Share2 className="h-3.5 w-3.5" />
+            {post.engagement.shares}
+          </span>
+          <a
+            href={post.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto inline-flex items-center gap-1 text-linkify-green hover:underline"
+          >
+            View on LinkedIn
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
       </div>
+      <div className="h-3 bg-gradient-to-b from-transparent to-[#121212]" />
     </div>
   );
 }
@@ -188,13 +198,21 @@ export default function EmployeeDetailPage({
           post={mostRecentPost}
           label="Latest Release"
           icon={<Clock className="h-4 w-4 text-blue-400" />}
-          accentColor="border-blue-500"
+          accentHex="#60a5fa"
+          gradientFrom="from-[#0a1a2e]"
+          gradientVia="via-[#0d2040]"
+          gradientTo="to-[#14325d]"
+          glowColor="bg-[#60a5fa]/8"
         />
         <HeroPostCard
           post={mostEngagedPost30d}
           label="What's Trending"
           icon={<TrendingUp className="h-4 w-4 text-linkify-green" />}
-          accentColor="border-linkify-green"
+          accentHex="#4ade80"
+          gradientFrom="from-[#0a2e1a]"
+          gradientVia="via-[#0d3b20]"
+          gradientTo="to-[#14532d]"
+          glowColor="bg-[#4ade80]/8"
         />
       </div>
 

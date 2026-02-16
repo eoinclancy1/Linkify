@@ -6,7 +6,8 @@ import type { LeaderboardEntry } from '@/components/employees/EmployeeLeaderboar
 import AllPostsTable from '@/components/employees/AllPostsTable';
 import type { PostEntry } from '@/components/employees/AllPostsTable';
 import Skeleton from '@/components/ui/Skeleton';
-import { Search } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import { Search, Users } from 'lucide-react';
 import useSWR from 'swr';
 import { useAppStore } from '@/stores/app-store';
 import { useState, useMemo } from 'react';
@@ -260,7 +261,7 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Employees</h1>
+      <PageHeader title="Employees" accentLabel="Team" icon={Users} statValue={employees?.length} statLabel="members" />
 
       {/* Tabs */}
       <div className="flex gap-2">

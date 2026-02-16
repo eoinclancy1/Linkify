@@ -13,6 +13,8 @@ interface AppState {
   setEmployeeTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
   contentEngTab: 'overview' | 'leaderboard' | 'posts';
   setContentEngTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
+  advisorTab: 'overview' | 'leaderboard' | 'posts';
+  setAdvisorTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }
@@ -30,6 +32,8 @@ export const useAppStore = create<AppState>((set) => ({
   setEmployeeTab: (tab) => set({ employeeTab: tab }),
   contentEngTab: 'overview',
   setContentEngTab: (tab) => set({ contentEngTab: tab }),
+  advisorTab: 'overview',
+  setAdvisorTab: (tab) => set({ advisorTab: tab }),
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 }));

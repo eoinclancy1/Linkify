@@ -247,6 +247,7 @@ export interface PostScrapeResult {
 
 export async function scrapePostsForProfile(
   profileUrl: string,
+  companyUrl: string,
 ): Promise<PostScrapeResult> {
   const input: PostScraperInput = {
     targetUrls: [profileUrl],
@@ -257,7 +258,6 @@ export async function scrapePostsForProfile(
 
   const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
 
-  const companyUrl = ''; // Will be passed from orchestrator
   const posts = result.items
     .map((item) => mapPostToDatabase(item, companyUrl, profileUrl))
     .filter((p): p is MappedPost => p !== null);
@@ -268,39 +268,87 @@ export async function scrapePostsForProfile(
   };
 }
 
+/**
+ * Resolve which authorId a post belongs to by matching the post's author slug
+ * against the known profile URLs. Returns null if no match found.
+ */
+function resolveAuthorId(
+  post: ApifyPostOutput,
+  slugToAuthorId: Map<string, string>,
+): string | null {
+  // Try author.publicIdentifier first (most reliable)
+  if (post.author?.publicIdentifier) {
+    const id = slugToAuthorId.get(post.author.publicIdentifier.toLowerCase());
+    if (id) return id;
+  }
+
+  // Try author.linkedinUrl
+  if (post.author?.linkedinUrl) {
+    const slug = extractProfileSlug(post.author.linkedinUrl);
+    if (slug) {
+      const id = slugToAuthorId.get(slug);
+      if (id) return id;
+    }
+  }
+
+  // Try post URL (e.g. /posts/john-doe_some-activity)
+  const postUrl = post.linkedinUrl || post.url || post.postUrl || '';
+  if (postUrl.includes('/posts/')) {
+    const postSlug = postUrl.split('/posts/')[1]?.split('_')[0]?.toLowerCase() || '';
+    if (postSlug) {
+      const id = slugToAuthorId.get(postSlug);
+      if (id) return id;
+    }
+  }
+
+  return null;
+}
+
 export async function scrapePostsForProfiles(
   profiles: Array<{ profileUrl: string; authorId: string }>,
   companyUrl: string,
 ): Promise<{ runIds: string[]; postsByAuthor: Map<string, MappedPost[]>; costUsd: number }> {
-  const runIds: string[] = [];
-  const postsByAuthor = new Map<string, MappedPost[]>();
-  let totalCost = 0;
-
-  for (let i = 0; i < profiles.length; i++) {
-    const { profileUrl, authorId } = profiles[i];
-
-    const input: PostScraperInput = {
-      targetUrls: [profileUrl],
-      postedLimit: 'month',
-      maxPosts: 0,
-      includeReposts: false,
-    };
-
-    const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
-    runIds.push(result.runId);
-    totalCost += result.costUsd;
-
-    const posts = result.items
-      .map((item) => mapPostToDatabase(item, companyUrl, profileUrl))
-      .filter((p): p is MappedPost => p !== null);
-
-    postsByAuthor.set(authorId, posts);
-
-    // Sleep between profiles (but not after the last one)
-    if (i < profiles.length - 1) {
-      await sleep(PROFILE_DELAY_MS);
-    }
+  if (profiles.length === 0) {
+    return { runIds: [], postsByAuthor: new Map(), costUsd: 0 };
   }
 
-  return { runIds, postsByAuthor, costUsd: totalCost };
+  // Build slug → authorId lookup for attribution
+  const slugToAuthorId = new Map<string, string>();
+  for (const { profileUrl, authorId } of profiles) {
+    const slug = extractProfileSlug(profileUrl);
+    if (slug) slugToAuthorId.set(slug, authorId);
+  }
+
+  // Send all profile URLs in a single actor call
+  const input: PostScraperInput = {
+    targetUrls: profiles.map((p) => p.profileUrl),
+    postedLimit: 'month',
+    maxPosts: 0,
+    includeReposts: false,
+  };
+
+  const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
+
+  // Attribute each post to the correct author
+  const postsByAuthor = new Map<string, MappedPost[]>();
+  for (const { authorId } of profiles) {
+    postsByAuthor.set(authorId, []);
+  }
+
+  for (const item of result.items) {
+    if (isRepost(item)) continue;
+
+    // Skip company-authored posts
+    if (item.author?.type === 'company') continue;
+
+    const authorId = resolveAuthorId(item, slugToAuthorId);
+    if (!authorId) continue;
+
+    const mapped = mapPostToDatabase(item, companyUrl);
+    if (!mapped) continue;
+
+    postsByAuthor.get(authorId)!.push(mapped);
+  }
+
+  return { runIds: [result.runId], postsByAuthor, costUsd: result.costUsd };
 }

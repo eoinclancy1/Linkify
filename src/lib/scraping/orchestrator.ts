@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { discoverEmployees } from '@/lib/apify/scrapers/employee-discovery';
-import { scrapeProfiles, extractCompanyStartDate, type MappedProfile } from '@/lib/apify/scrapers/profile-scraper';
+import { scrapeProfiles, extractCompanyStartDate } from '@/lib/apify/scrapers/profile-scraper';
 import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
 import { searchMentionPosts } from '@/lib/apify/scrapers/mention-search';
 import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
@@ -36,18 +36,79 @@ async function completeScrapeRun(
 }
 
 export class ScrapeOrchestrator {
+  /**
+   * Full sync — discovery + profiles + posts + mentions + derived tables.
+   * Intended for weekly runs or manual "Full Sync" triggers.
+   */
   async runFullSync(): Promise<void> {
     const config = await getConfig();
     if (!config.companyLinkedinUrl) {
       throw new Error('Company LinkedIn URL not configured');
     }
 
+    await this.expireStuckRuns();
     await this.discoverNewEmployees();
     await this.scrapeAllProfiles();
+    const scrapeStart = new Date();
     await this.scrapeAllPosts();
     await this.searchExternalMentions();
     await this.updateCompanyMentions();
-    await this.refreshPostingActivities();
+    await this.refreshPostingActivities(scrapeStart);
+  }
+
+  /**
+   * Daily light sync — posts + mentions + derived tables.
+   * Skips discovery and profile scraping (those change infrequently).
+   */
+  async runDailySync(): Promise<void> {
+    const config = await getConfig();
+    if (!config.companyLinkedinUrl) {
+      throw new Error('Company LinkedIn URL not configured');
+    }
+
+    await this.expireStuckRuns();
+    const scrapeStart = new Date();
+    await this.scrapeAllPosts();
+    await this.searchExternalMentions();
+    await this.updateCompanyMentions();
+    await this.refreshPostingActivities(scrapeStart);
+  }
+
+  /**
+   * Weekly full sync — includes discovery and profile updates.
+   */
+  async runWeeklySync(): Promise<void> {
+    await this.runFullSync();
+  }
+
+  /**
+   * Auto-expire scrape runs stuck in RUNNING status for more than 30 minutes.
+   */
+  async expireStuckRuns(): Promise<number> {
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const stuckRuns = await prisma.scrapeRun.findMany({
+      where: {
+        status: 'RUNNING',
+        startedAt: { lt: thirtyMinutesAgo },
+      },
+    });
+
+    for (const run of stuckRuns) {
+      await prisma.scrapeRun.update({
+        where: { id: run.id },
+        data: {
+          status: 'FAILED',
+          completedAt: new Date(),
+          errors: { message: 'Auto-expired: stuck in RUNNING for over 30 minutes' } as object,
+        },
+      });
+    }
+
+    if (stuckRuns.length > 0) {
+      console.log(`[orchestrator] Expired ${stuckRuns.length} stuck scrape run(s)`);
+    }
+
+    return stuckRuns.length;
   }
 
   async discoverNewEmployees(): Promise<{ found: number; created: number }> {
@@ -184,9 +245,9 @@ export class ScrapeOrchestrator {
 
       for (const [authorId, posts] of result.postsByAuthor) {
         for (const post of posts) {
-          await upsertPost(authorId, post);
-          // We count but can't easily distinguish create vs update from upsert
-          created++;
+          const action = await upsertPost(authorId, post);
+          if (action === 'created') created++;
+          else updated++;
         }
       }
 
@@ -226,7 +287,7 @@ export class ScrapeOrchestrator {
       let updated = 0;
 
       for (const post of result.posts) {
-        // Check if the author is already a tracked employee
+        // Check if the author is a known employee/advisor by LinkedIn URL
         let authorId: string | null = null;
         let isExternal = true;
 
@@ -236,37 +297,24 @@ export class ScrapeOrchestrator {
           });
 
           if (existingEmployee) {
-            // Author is a known employee — treat as employee post
+            // Author is a known employee or advisor
             authorId = existingEmployee.id;
-            isExternal = existingEmployee.isExternalAuthor;
+            isExternal = false;
           }
         }
 
-        // If no existing employee, create a lightweight external author record
-        if (!authorId && post.authorLinkedinUrl) {
-          const slug = post.authorPublicIdentifier || 'unknown';
-          const nameParts = post.authorName.split(' ');
-          const firstName = nameParts[0] ?? slug;
-          const lastName = nameParts.slice(1).join(' ');
-
-          const externalAuthor = await prisma.employee.create({
-            data: {
-              linkedinUrl: post.authorLinkedinUrl,
-              firstName,
-              lastName,
-              fullName: post.authorName,
-              headline: post.authorHeadline || null,
-              jobTitle: post.authorHeadline || '',
-              avatarUrl: post.authorAvatarUrl || '',
-              isActive: true,
-              isExternalAuthor: true,
-            },
-          });
-          authorId = externalAuthor.id;
-          isExternal = true;
-        }
-
-        if (!authorId) continue; // Skip posts with no identifiable author
+        // Build inline external author fields for unknown authors
+        const externalFields = isExternal ? {
+          externalAuthorName: post.authorName || null,
+          externalAuthorUrl: post.authorLinkedinUrl || null,
+          externalAuthorAvatarUrl: post.authorAvatarUrl || null,
+          externalAuthorHeadline: post.authorHeadline || null,
+        } : {
+          externalAuthorName: null,
+          externalAuthorUrl: null,
+          externalAuthorAvatarUrl: null,
+          externalAuthorHeadline: null,
+        };
 
         // Upsert the post
         const existing = await prisma.post.findUnique({
@@ -286,6 +334,8 @@ export class ScrapeOrchestrator {
               engagementScore: post.engagementScore,
               mentionsCompany: true,
               isExternal,
+              authorId,
+              ...externalFields,
               mediaUrls: post.mediaUrls ?? undefined,
               hashtags: post.hashtags ?? undefined,
             },
@@ -306,6 +356,7 @@ export class ScrapeOrchestrator {
               engagementScore: post.engagementScore,
               mentionsCompany: true,
               isExternal,
+              ...externalFields,
               mediaUrls: post.mediaUrls ?? undefined,
               hashtags: post.hashtags ?? undefined,
             },
@@ -331,27 +382,58 @@ export class ScrapeOrchestrator {
   }
 
   async updateCompanyMentions(): Promise<void> {
-    // Clear existing mentions and rebuild from posts
-    await prisma.companyMention.deleteMany();
-
+    // Upsert mentions for posts flagged mentionsCompany (incremental)
     const posts = await prisma.post.findMany({
       where: { mentionsCompany: true },
       select: { id: true, authorId: true, publishedAt: true },
     });
 
+    const mentionPostIds = new Set<string>();
     for (const post of posts) {
-      await prisma.companyMention.create({
-        data: {
+      mentionPostIds.add(post.id);
+      await prisma.companyMention.upsert({
+        where: { postId: post.id },
+        create: {
           postId: post.id,
+          authorId: post.authorId,
+          publishedAt: post.publishedAt,
+        },
+        update: {
           authorId: post.authorId,
           publishedAt: post.publishedAt,
         },
       });
     }
+
+    // Remove mentions for posts that no longer have mentionsCompany
+    await prisma.companyMention.deleteMany({
+      where: { postId: { notIn: [...mentionPostIds] } },
+    });
   }
 
-  async refreshPostingActivities(): Promise<void> {
+  /**
+   * Refresh posting activity counts. If `since` is provided, only recompute
+   * for authors who have posts updated after that date (incremental).
+   * Falls back to a full rebuild if `since` is not given.
+   */
+  async refreshPostingActivities(since?: Date): Promise<void> {
+    // Find which authors need recalculation
+    let authorIds: string[] | undefined;
+    if (since) {
+      const recentPosts = await prisma.post.findMany({
+        where: { authorId: { not: null }, updatedAt: { gte: since } },
+        select: { authorId: true },
+        distinct: ['authorId'],
+      });
+      authorIds = recentPosts.map((p) => p.authorId!);
+      if (authorIds.length === 0) return; // nothing changed
+    }
+
+    // Fetch posts for the affected authors (or all if full rebuild)
     const posts = await prisma.post.findMany({
+      where: {
+        authorId: { not: null, ...(authorIds ? { in: authorIds } : {}) },
+      },
       select: { authorId: true, publishedAt: true },
     });
 
@@ -376,7 +458,8 @@ export class ScrapeOrchestrator {
   }
 }
 
-async function upsertPost(authorId: string, post: MappedPost): Promise<void> {
+/** Returns 'created' or 'updated' so the caller can count accurately. */
+async function upsertPost(authorId: string, post: MappedPost): Promise<'created' | 'updated'> {
   const existing = await prisma.post.findUnique({
     where: { linkedinPostId: post.linkedinPostId },
   });
@@ -414,6 +497,7 @@ async function upsertPost(authorId: string, post: MappedPost): Promise<void> {
         hashtags: post.hashtags ?? undefined,
       },
     });
+    return 'updated';
   } else {
     await prisma.post.create({
       data: {
@@ -432,5 +516,6 @@ async function upsertPost(authorId: string, post: MappedPost): Promise<void> {
         hashtags: post.hashtags ?? undefined,
       },
     });
+    return 'created';
   }
 }

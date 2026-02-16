@@ -67,15 +67,15 @@ npx prisma studio            # visual DB browser
 
 | Model | Purpose |
 |-------|---------|
-| `Employee` | LinkedIn profile data, department, active status. `isExternalAuthor` flag for non-employee authors discovered via mention search. `companyStartDate` extracted from experience data to filter pre-employment posts from scoring. |
-| `Post` | Individual LinkedIn posts with engagement metrics |
-| `CompanyMention` | Posts that mention the company |
+| `Employee` | LinkedIn profile data, department, active status. `role` field (`EMPLOYEE` or `ADVISOR`) distinguishes employees from advisors. `companyStartDate` extracted from experience data to filter pre-employment posts from scoring. |
+| `Post` | Individual LinkedIn posts with engagement metrics. Nullable `authorId` — external posts have inline author fields (`externalAuthorName`, `externalAuthorUrl`, `externalAuthorAvatarUrl`, `externalAuthorHeadline`) instead of an Employee relation. |
+| `CompanyMention` | Posts that mention the company. Nullable `authorId` for external mentions. |
 | `EngagementSnapshot` | Point-in-time engagement metrics for trend tracking |
 | `PostingActivity` | Daily post counts per employee |
 | `ScrapeRun` | Scrape job history with status, stats, and `costUsd` per run |
 | `AppConfig` | Singleton row for company URL, name, scrape settings, `vercelMonthlyCostUsd`, `mentionBonusMultiplier` |
 
-### Enums (4)
+### Enums (5)
 
 | Enum | Values |
 |------|--------|
@@ -83,6 +83,7 @@ npx prisma studio            # visual DB browser
 | `PostType` | ORIGINAL, RESHARE, ARTICLE, POLL |
 | `ScrapeType` | EMPLOYEE_DISCOVERY, PROFILE_SCRAPE, POST_SCRAPE, ENGAGEMENT_UPDATE, MENTION_SEARCH |
 | `ScrapeStatus` | PENDING, RUNNING, COMPLETED, FAILED, PARTIAL |
+| `EmployeeRole` | EMPLOYEE, ADVISOR |
 
 ## Apify Scrapers
 
@@ -93,7 +94,7 @@ Four actors in `src/lib/apify/scrapers/` (all from `harvestapi` — free, no coo
 | `harvestapi/linkedin-company-employees` | `employee-discovery.ts` | Discovers employee profile URLs from a company page. Uses `takePages: 100` to prevent empty results. |
 | `harvestapi/linkedin-profile-scraper` | `profile-scraper.ts` | Scrapes full profile details (bio, experience, skills). Handles `avatarUrl` as object `{ url, sizes }`. |
 | `harvestapi/linkedin-profile-posts` | `post-scraper.ts` | Scrapes posts with engagement metrics and company mention detection. Excludes reposts, handles array comments and invalid dates. 5s delay between profiles. |
-| `harvestapi/linkedin-post-search` | `mention-search.ts` | Searches LinkedIn posts by company name to find external mentions. Creates lightweight external author Employee records (`isExternalAuthor: true`). |
+| `harvestapi/linkedin-post-search` | `mention-search.ts` | Searches LinkedIn posts by company name to find external mentions. Stores inline author fields on Post records for unknown authors (no Employee record created). |
 
 ## Scraper Robustness
 
@@ -108,7 +109,7 @@ The scrapers handle various Apify data inconsistencies:
   - `toCount()` handles engagement fields that may be arrays instead of numbers. `isRepost()` checks both `isRepost` boolean and post type to exclude reshares.
 - **Profile scraper**: `extractUrl()` handles `avatarUrl` being either a string or an object `{ url, sizes }`. `extractCompanyStartDate()` parses the employee's start date at the current company from their experience JSON (matches on `companyLinkedinUrl` slug, falls back to `endDate.text === "Present"`). Called in the orchestrator during `scrapeAllProfiles()` and stored as `Employee.companyStartDate`.
 - **Employee discovery**: Uses `takePages: 100` to prevent the Apify actor from returning empty results.
-- **Mention search**: Uses `config.companyName` (currently "airops") as the search query, NOT derived from the LinkedIn URL slug (which is "airopshq"). The company name is stored in `AppConfig.companyName` and shown as a read-only field in Settings.
+- **Mention search**: Uses `config.companyName` (currently "airops") as the search query, NOT derived from the LinkedIn URL slug (which is "airopshq"). The company name is stored in `AppConfig.companyName` and shown as a read-only field in Settings. Does NOT create Employee records for unknown authors — stores inline fields (`externalAuthorName`, etc.) directly on the Post record.
 - **Stuck run auto-expiry**: The orchestrator auto-expires runs stuck in RUNNING status.
 
 ## Vercel Background Execution
@@ -119,8 +120,9 @@ The scrape trigger route uses Next.js `after()` (from `next/server`) with `maxDu
 
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/employees` | GET | List all employees (or by ID via query param) |
-| `/api/employees` | POST | Create employee from LinkedIn URL |
+| `/api/employees` | GET | List employees (or by ID). `?role=advisor` returns advisors. |
+| `/api/employees` | POST | Create employee/advisor from LinkedIn URL. Optional `role: 'advisor'` in body. |
+| `/api/employees` | DELETE | Deactivate employee/advisor by `?id=xxx`. |
 | `/api/posts` | GET | All posts or by employee, with optional date range |
 | `/api/hits` | GET | Posts with 100+ likes, sorted by engagement |
 | `/api/stats` | GET | Dashboard summary stats |
@@ -190,9 +192,10 @@ npx prisma studio    # visual DB browser
 ## UI Component Notes
 
 - Badge component variants: `green`, `blue`, `orange`, `red`, `neutral` (not `gray`)
-- Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts, Search Mentions. Includes scoring config (mention bonus multiplier), read-only mention search query field, and links to `/usage` page.
-- "What's Trending" page (`/leaderboard`) shows posts mentioning the company — from both employees and external authors discovered via mention search.
-- **Leaderboard scoring** (both `/employees` and `/content-engineering`): Posts published before an employee's `companyStartDate` are excluded from point calculations, streak counts, and all scoring metrics. Employees without a `companyStartDate` have all posts counted (no filter applied).
+- Settings page uses SWR with 5-second polling for live scrape status. Has individual scrape buttons: Full Sync, Discover Employees, Update Profiles, Update Posts, Search Mentions. Includes scoring config (mention bonus multiplier), read-only mention search query field, links to `/usage` page, and **Advisors management** section (add by LinkedIn URL, list with remove button).
+- "What's Trending" page (`/leaderboard`) shows posts mentioning the company — from both employees/advisors and external authors (via inline Post fields).
+- **Advisors page** (`/advisors`): Same pattern as `/content-engineering` — fetches from `/api/employees?role=advisor`, three tabs (Overview, Leaderboard, All Posts), uses `advisorTab` state in app-store.
+- **Leaderboard scoring** (`/employees`, `/content-engineering`, `/advisors`): Posts published before an employee's `companyStartDate` are excluded from point calculations, streak counts, and all scoring metrics. Employees without a `companyStartDate` have all posts counted (no filter applied).
 - Usage page (`/usage`) shows 30-day cost breakdown: Apify (from ScrapeRun.costUsd), Neon (from consumption API), Vercel (manual entry stored in AppConfig.vercelMonthlyCostUsd).
 - Employee detail page (`/employees/[employeeId]`) layout order: profile hero + 4 stat cards → two hero post cards ("Latest Release" = most recent post, "What's Trending" = highest engagement in last 30 days) → posting activity heatmap + weekly frequency chart → recent posts list. `EmployeeDetailPanel` only renders the profile and stats; post data logic lives in the page.
 - Theme colors: `linkify-green` (#1DB954), `background` (#121212), `surface` (#181818), `elevated` (#282828), `highlight` (#333333)

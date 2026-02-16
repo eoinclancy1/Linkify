@@ -11,6 +11,7 @@ export interface DashboardStats {
 
 export interface DataProvider {
   getEmployees(): Promise<Employee[]>;
+  getAdvisors(): Promise<Employee[]>;
   getEmployeeById(id: string): Promise<Employee | null>;
   getPostsByEmployee(employeeId: string, days?: number): Promise<Post[]>;
   getAllPosts(days?: number): Promise<Post[]>;

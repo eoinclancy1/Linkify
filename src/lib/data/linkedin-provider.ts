@@ -13,6 +13,11 @@ export class LinkedInDataProvider implements DataProvider {
     throw new Error('LinkedInDataProvider.getEmployees() is not yet implemented');
   }
 
+  async getAdvisors(): Promise<Employee[]> {
+    // TODO: Fetch advisors from LinkedIn API
+    throw new Error('LinkedInDataProvider.getAdvisors() is not yet implemented');
+  }
+
   async getEmployeeById(id: string): Promise<Employee | null> {
     // TODO: Fetch a single employee profile from LinkedIn
     throw new Error('LinkedInDataProvider.getEmployeeById() is not yet implemented');

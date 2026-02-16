@@ -12,12 +12,16 @@ export const seedMentions: CompanyMention[] = seedPosts
   .filter((post) => post.mentionsCompany)
   .sort((a, b) => b.engagement.engagementScore - a.engagement.engagementScore)
   .map((post, index) => {
-    const author = employeeMap.get(post.authorId)!;
+    const author = post.authorId ? employeeMap.get(post.authorId) ?? null : null;
+    const authorName = author?.fullName ?? post.externalAuthorName ?? 'Unknown';
+    const authorAvatarUrl = author?.avatarUrl ?? post.externalAuthorAvatarUrl ?? '';
     return {
       id: `mention-${String(index + 1).padStart(4, '0')}`,
       postId: post.id,
       post,
       author,
+      authorName,
+      authorAvatarUrl,
       rank: index + 1,
     };
   });

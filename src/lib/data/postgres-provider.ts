@@ -1,6 +1,6 @@
 import type { Employee, Post, PostingStreak, PostingActivity, CompanyMention, PostType } from '@/types';
 import type { DataProvider, DashboardStats } from '@/lib/data/provider';
-import type { Employee as PrismaEmployee, Post as PrismaPost, Department } from '@prisma/client';
+import type { Employee as PrismaEmployee, Post as PrismaPost, Department, EmployeeRole } from '@prisma/client';
 import { prisma } from '@/lib/db/prisma';
 import { computeStreaks } from '@/lib/utils/streaks';
 
@@ -19,6 +19,11 @@ const DEPARTMENT_MAP: Record<Department, Employee['department']> = {
   DATA: 'Data',
   CONTENT_ENGINEERING: 'Content Engineering',
   OTHER: 'Other',
+};
+
+const ROLE_MAP: Record<EmployeeRole, Employee['role']> = {
+  EMPLOYEE: 'employee',
+  ADVISOR: 'advisor',
 };
 
 const POST_TYPE_MAP: Record<string, PostType> = {
@@ -40,6 +45,7 @@ function mapEmployee(e: PrismaEmployee): Employee {
     avatarUrl: e.avatarUrl,
     companyStartDate: e.companyStartDate?.toISOString() ?? undefined,
     isActive: e.isActive,
+    role: ROLE_MAP[e.role] ?? 'employee',
   };
 }
 
@@ -58,6 +64,11 @@ function mapPost(p: PrismaPost): Post {
       engagementScore: p.engagementScore,
     },
     mentionsCompany: p.mentionsCompany,
+    isExternal: p.isExternal,
+    externalAuthorName: p.externalAuthorName ?? undefined,
+    externalAuthorUrl: p.externalAuthorUrl ?? undefined,
+    externalAuthorAvatarUrl: p.externalAuthorAvatarUrl ?? undefined,
+    externalAuthorHeadline: p.externalAuthorHeadline ?? undefined,
   };
 }
 
@@ -66,10 +77,18 @@ function mapPost(p: PrismaPost): Post {
 export class PostgresDataProvider implements DataProvider {
   async getEmployees(): Promise<Employee[]> {
     const employees = await prisma.employee.findMany({
-      where: { isActive: true, isExternalAuthor: false },
+      where: { isActive: true, role: 'EMPLOYEE' },
       orderBy: { fullName: 'asc' },
     });
     return employees.map(mapEmployee);
+  }
+
+  async getAdvisors(): Promise<Employee[]> {
+    const advisors = await prisma.employee.findMany({
+      where: { isActive: true, role: 'ADVISOR' },
+      orderBy: { fullName: 'asc' },
+    });
+    return advisors.map(mapEmployee);
   }
 
   async getEmployeeById(id: string): Promise<Employee | null> {
@@ -120,13 +139,22 @@ export class PostgresDataProvider implements DataProvider {
       orderBy,
     });
 
-    return mentions.map((m, i) => ({
-      id: m.id,
-      postId: m.postId,
-      post: mapPost(m.post),
-      author: mapEmployee(m.author),
-      rank: i + 1,
-    }));
+    return mentions.map((m, i) => {
+      const post = mapPost(m.post);
+      // Resolve author name/avatar from Employee relation or Post inline fields
+      const authorName = m.author?.fullName ?? m.post.externalAuthorName ?? 'Unknown';
+      const authorAvatarUrl = m.author?.avatarUrl ?? m.post.externalAuthorAvatarUrl ?? '';
+
+      return {
+        id: m.id,
+        postId: m.postId,
+        post,
+        author: m.author ? mapEmployee(m.author) : null,
+        authorName,
+        authorAvatarUrl,
+        rank: i + 1,
+      };
+    });
   }
 
   async getStreak(employeeId: string): Promise<PostingStreak> {
@@ -145,7 +173,7 @@ export class PostgresDataProvider implements DataProvider {
 
   async getAllStreaks(): Promise<PostingStreak[]> {
     const employees = await prisma.employee.findMany({
-      where: { isActive: true, isExternalAuthor: false },
+      where: { isActive: true, role: { in: ['EMPLOYEE', 'ADVISOR'] } },
       select: { id: true },
     });
 

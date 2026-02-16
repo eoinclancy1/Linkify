@@ -5,7 +5,7 @@ import useSWR, { mutate } from 'swr';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Link from 'next/link';
-import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare, AtSign, DollarSign, ChevronRight, Trophy } from 'lucide-react';
+import { Globe, Users, Link2, Wifi, WifiOff, Play, RefreshCw, Plus, Clock, Loader2, Search, UserCheck, MessageSquare, AtSign, DollarSign, ChevronRight, Trophy, Shield, X } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -68,6 +68,7 @@ export default function SettingsPage() {
     { refreshInterval: 5000 },
   );
   const { data: employees } = useSWR<EmployeeRecord[]>('/api/employees', fetcher);
+  const { data: advisors } = useSWR<EmployeeRecord[]>('/api/employees?role=advisor', fetcher);
 
   const [companyUrl, setCompanyUrl] = useState('');
   const [companyUrlInit, setCompanyUrlInit] = useState(false);
@@ -81,6 +82,10 @@ export default function SettingsPage() {
   const [multiplierInit, setMultiplierInit] = useState(false);
   const [multiplierSaving, setMultiplierSaving] = useState(false);
   const [multiplierSaved, setMultiplierSaved] = useState(false);
+  const [newAdvisorUrl, setNewAdvisorUrl] = useState('');
+  const [addingAdvisor, setAddingAdvisor] = useState(false);
+  const [advisorAddError, setAdvisorAddError] = useState('');
+  const [removingAdvisor, setRemovingAdvisor] = useState<string | null>(null);
 
   // Initialize company URL from config
   if (config && !companyUrlInit) {
@@ -166,6 +171,40 @@ export default function SettingsPage() {
       setAddingEmployee(false);
     }
   }, [newEmployeeUrl]);
+
+  const handleAddAdvisor = useCallback(async () => {
+    if (!newAdvisorUrl.trim()) return;
+    setAddingAdvisor(true);
+    setAdvisorAddError('');
+    try {
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linkedinUrl: newAdvisorUrl.trim(), role: 'advisor' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAdvisorAddError(data.error || 'Failed to add advisor');
+      } else {
+        setNewAdvisorUrl('');
+        await mutate('/api/employees?role=advisor');
+      }
+    } catch {
+      setAdvisorAddError('Network error');
+    } finally {
+      setAddingAdvisor(false);
+    }
+  }, [newAdvisorUrl]);
+
+  const handleRemoveAdvisor = useCallback(async (id: string) => {
+    setRemovingAdvisor(id);
+    try {
+      await fetch(`/api/employees?id=${id}`, { method: 'DELETE' });
+      await mutate('/api/employees?role=advisor');
+    } finally {
+      setRemovingAdvisor(null);
+    }
+  }, []);
 
   const lastScrape = scrapeRuns?.[0];
   const isAnyScrapeRunning = scrapeRuns?.some((r) => r.status === 'RUNNING' || r.status === 'PENDING');
@@ -468,6 +507,97 @@ export default function SettingsPage() {
             )}
             {employees?.length === 0 && (
               <div className="p-3 text-center text-sm text-neutral-500">No employees yet</div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Advisors */}
+      <Card>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-linkify-green/10 rounded-lg">
+              <Shield className="w-5 h-5 text-linkify-green" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Advisors</h3>
+              <p className="text-sm text-neutral-400">
+                {advisors ? `${advisors.length} advisors tracked` : 'Manage external advisors tracked by Linkify'}
+              </p>
+            </div>
+          </div>
+
+          {/* Add Advisor */}
+          {isApifyConfigured && (
+            <div className="space-y-2">
+              <div className="flex gap-3">
+                <input
+                  type="url"
+                  value={newAdvisorUrl}
+                  onChange={(e) => { setNewAdvisorUrl(e.target.value); setAdvisorAddError(''); }}
+                  placeholder="https://linkedin.com/in/advisor-name"
+                  className="flex-1 bg-elevated rounded-lg px-4 py-2.5 text-white placeholder-neutral-500 outline-none focus:ring-2 focus:ring-linkify-green transition-all text-sm"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddAdvisor()}
+                />
+                <button
+                  onClick={handleAddAdvisor}
+                  disabled={addingAdvisor || !newAdvisorUrl.trim()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-linkify-green hover:bg-linkify-green-hover text-black font-semibold rounded-lg transition-colors disabled:opacity-50 text-sm"
+                >
+                  {addingAdvisor ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  Add
+                </button>
+              </div>
+              {advisorAddError && (
+                <p className="text-sm text-red-400">{advisorAddError}</p>
+              )}
+            </div>
+          )}
+
+          {/* Advisor List */}
+          <div className="max-h-64 overflow-y-auto space-y-2">
+            {advisors?.map((adv) => (
+              <div key={adv.id} className="flex items-center gap-3 p-2 bg-elevated rounded-lg">
+                {adv.avatarUrl ? (
+                  <img
+                    src={adv.avatarUrl}
+                    alt={adv.fullName}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-highlight flex items-center justify-center text-xs font-semibold text-neutral-400">
+                    {adv.fullName.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{adv.fullName}</p>
+                  <p className="text-xs text-neutral-500 truncate">{adv.jobTitle || 'No title'}</p>
+                </div>
+                {isApifyConfigured && (
+                  <button
+                    onClick={() => handleRemoveAdvisor(adv.id)}
+                    disabled={removingAdvisor === adv.id}
+                    className="p-1.5 text-neutral-500 hover:text-red-400 transition-colors disabled:opacity-50"
+                    title="Remove advisor"
+                  >
+                    {removingAdvisor === adv.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <X className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
+              </div>
+            ))}
+            {!advisors && (
+              <div className="p-3 text-center text-sm text-neutral-500">Loading advisors...</div>
+            )}
+            {advisors?.length === 0 && (
+              <div className="p-3 text-center text-sm text-neutral-500">No advisors yet</div>
             )}
           </div>
         </div>

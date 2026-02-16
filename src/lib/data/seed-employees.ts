@@ -109,7 +109,7 @@ const shuffledFirstNames = shuffleArray(firstNames);
 const shuffledLastNames = shuffleArray(lastNames);
 const shuffledDepartments = shuffleArray(departmentDistribution);
 
-export const seedEmployees: Employee[] = Array.from({ length: 40 }, (_, i) => {
+export const seedEmployees: Employee[] = Array.from({ length: 40 }, (_, i): Employee => {
   const firstName = shuffledFirstNames[i];
   const lastName = shuffledLastNames[i];
   const department = shuffledDepartments[i];
@@ -134,5 +134,35 @@ export const seedEmployees: Employee[] = Array.from({ length: 40 }, (_, i) => {
     avatarUrl: `https://i.pravatar.cc/300?u=${slug}`,
     companyStartDate: startDate.toISOString(),
     isActive: rand() > 0.05, // ~95% active
+    role: 'employee',
   };
 });
+
+export const seedAdvisors: Employee[] = [
+  {
+    id: 'adv-001',
+    firstName: 'Marcus',
+    lastName: 'Rivera',
+    fullName: 'Marcus Rivera',
+    jobTitle: 'Growth Advisor',
+    department: 'Other',
+    linkedinProfileUrl: 'https://linkedin.com/in/marcus-rivera',
+    avatarUrl: 'https://i.pravatar.cc/300?u=marcus-rivera-advisor',
+    companyStartDate: new Date(Date.now() - 180 * 86400000).toISOString(),
+    isActive: true,
+    role: 'advisor',
+  },
+  {
+    id: 'adv-002',
+    firstName: 'Priya',
+    lastName: 'Sharma',
+    fullName: 'Priya Sharma',
+    jobTitle: 'Content Strategy Consultant',
+    department: 'Other',
+    linkedinProfileUrl: 'https://linkedin.com/in/priya-sharma',
+    avatarUrl: 'https://i.pravatar.cc/300?u=priya-sharma-advisor',
+    companyStartDate: new Date(Date.now() - 120 * 86400000).toISOString(),
+    isActive: true,
+    role: 'advisor',
+  },
+];

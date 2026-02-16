@@ -94,7 +94,16 @@ export default function DashboardPage() {
   if (statsLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="relative bg-gradient-to-br from-[#0a2e1a] via-[#0d3b20] to-[#14532d] rounded-xl overflow-hidden">
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#4ade80]/8 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-[#22c55e]/6 rounded-full blur-3xl" />
+          <div className="relative z-10 pt-6 pb-1 px-6">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4ade80] mb-1">Overview</p>
+            <h1 className="text-4xl font-extrabold text-white">Dashboard</h1>
+          </div>
+          <div className="h-4 bg-gradient-to-b from-transparent to-[#121212]" />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} variant="card" />)}
         </div>
@@ -105,7 +114,20 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="relative bg-gradient-to-br from-[#0a2e1a] via-[#0d3b20] to-[#14532d] rounded-xl overflow-hidden">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#4ade80]/8 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-[#22c55e]/6 rounded-full blur-3xl" />
+        <div className="relative z-10 pt-6 pb-1 px-6">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#4ade80] mb-1">Overview</p>
+          <h1 className="text-4xl font-extrabold text-white">Dashboard</h1>
+          <div className="flex items-center gap-6 mt-2 text-sm text-neutral-300">
+            <span><span className="font-bold text-white">{stats?.totalPosts30d ?? 0}</span> posts this month</span>
+            <span><span className="font-bold text-white">{stats?.activeStreaks ?? 0}</span> active streaks</span>
+          </div>
+        </div>
+        <div className="h-4 bg-gradient-to-b from-transparent to-[#121212]" />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

@@ -1,6 +1,6 @@
 import type { Employee, Post, PostingStreak, PostingActivity, CompanyMention } from '@/types';
 import type { DataProvider, DashboardStats } from '@/lib/data/provider';
-import { seedEmployees } from '@/lib/data/seed-employees';
+import { seedEmployees, seedAdvisors } from '@/lib/data/seed-employees';
 import { seedPosts } from '@/lib/data/seed-posts';
 import { seedMentions } from '@/lib/data/seed-mentions';
 import { isWithinDays } from '@/lib/utils/date';
@@ -8,6 +8,7 @@ import { computeStreaks } from '@/lib/utils/streaks';
 
 export class MockDataProvider implements DataProvider {
   private employees: Employee[] = seedEmployees;
+  private advisors: Employee[] = seedAdvisors;
   private posts: Post[] = seedPosts;
   private mentions: CompanyMention[] = seedMentions;
 
@@ -15,8 +16,14 @@ export class MockDataProvider implements DataProvider {
     return this.employees;
   }
 
+  async getAdvisors(): Promise<Employee[]> {
+    return this.advisors;
+  }
+
   async getEmployeeById(id: string): Promise<Employee | null> {
-    return this.employees.find((e) => e.id === id) ?? null;
+    return this.employees.find((e) => e.id === id)
+      ?? this.advisors.find((e) => e.id === id)
+      ?? null;
   }
 
   async getPostsByEmployee(employeeId: string, days?: number): Promise<Post[]> {
@@ -69,8 +76,9 @@ export class MockDataProvider implements DataProvider {
   }
 
   async getAllStreaks(): Promise<PostingStreak[]> {
+    const allTracked = [...this.employees, ...this.advisors];
     const streaks: PostingStreak[] = [];
-    for (const employee of this.employees) {
+    for (const employee of allTracked) {
       const streak = await this.getStreak(employee.id);
       streaks.push(streak);
     }

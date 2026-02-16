@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { after } from 'next/server';
 import { ScrapeOrchestrator } from '@/lib/scraping/orchestrator';
 
 // Allow up to 5 minutes for scrape operations
@@ -13,16 +14,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    const orchestrator = new ScrapeOrchestrator();
-    await orchestrator.runFullSync();
+  // ?type=weekly for the weekly full sync, otherwise daily light sync
+  const type = request.nextUrl.searchParams.get('type') ?? 'daily';
+  const orchestrator = new ScrapeOrchestrator();
 
-    return NextResponse.json({ status: 'completed' });
-  } catch (error) {
-    console.error('Cron scrape error:', error);
-    return NextResponse.json(
-      { error: 'Scrape failed', message: error instanceof Error ? error.message : String(error) },
-      { status: 500 },
-    );
-  }
+  after(async () => {
+    try {
+      if (type === 'weekly') {
+        await orchestrator.runWeeklySync();
+      } else {
+        await orchestrator.runDailySync();
+      }
+    } catch (err) {
+      console.error(`Cron scrape (${type}) failed:`, err);
+    }
+  });
+
+  return NextResponse.json({ status: 'started', type });
 }

@@ -5,6 +5,8 @@ export interface CompanyMention {
   id: string;
   postId: string;
   post: Post;
-  author: Employee;
+  author: Employee | null;
+  authorName: string;
+  authorAvatarUrl: string;
   rank: number;
 }
