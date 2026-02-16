@@ -121,17 +121,19 @@ export class PostgresDataProvider implements DataProvider {
     return posts.map(mapPost);
   }
 
-  async getCompanyMentions(days?: number, sort?: string): Promise<CompanyMention[]> {
+  async getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean): Promise<CompanyMention[]> {
     const dateFilter = days !== undefined
       ? { publishedAt: { gte: daysAgo(days) } }
       : {};
+
+    const externalFilter = externalOnly ? { post: { isExternal: true } } : {};
 
     const orderBy = sort === 'date'
       ? { publishedAt: 'desc' as const }
       : { post: { engagementScore: 'desc' as const } };
 
     const mentions = await prisma.companyMention.findMany({
-      where: dateFilter,
+      where: { ...dateFilter, ...externalFilter },
       include: {
         post: true,
         author: true,

@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
     | 'shares'
     | 'recent';
 
+  const externalOnly = searchParams.get('external') === 'true';
+
   const provider = getDataProvider();
-  const mentions = await provider.getCompanyMentions(range, sort);
+  const mentions = await provider.getCompanyMentions(range, sort, externalOnly);
   return NextResponse.json(mentions);
 }

@@ -39,8 +39,12 @@ export class MockDataProvider implements DataProvider {
     return this.posts.filter((p) => isWithinDays(p.publishedAt, days));
   }
 
-  async getCompanyMentions(days?: number, sort?: string): Promise<CompanyMention[]> {
+  async getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean): Promise<CompanyMention[]> {
     let mentions = this.mentions;
+
+    if (externalOnly) {
+      mentions = mentions.filter((m) => m.post.isExternal);
+    }
 
     if (days !== undefined) {
       mentions = mentions.filter((m) => isWithinDays(m.post.publishedAt, days));

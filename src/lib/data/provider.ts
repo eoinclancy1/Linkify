@@ -15,7 +15,7 @@ export interface DataProvider {
   getEmployeeById(id: string): Promise<Employee | null>;
   getPostsByEmployee(employeeId: string, days?: number): Promise<Post[]>;
   getAllPosts(days?: number): Promise<Post[]>;
-  getCompanyMentions(days?: number, sort?: string): Promise<CompanyMention[]>;
+  getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean): Promise<CompanyMention[]>;
   getStreak(employeeId: string): Promise<PostingStreak>;
   getAllStreaks(): Promise<PostingStreak[]>;
   getPostingActivity(employeeId: string): Promise<PostingActivity[]>;

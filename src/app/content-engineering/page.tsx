@@ -1,13 +1,12 @@
 'use client';
 
-import EmployeeGrid from '@/components/employees/EmployeeGrid';
-import EmployeeLeaderboard from '@/components/employees/EmployeeLeaderboard';
-import type { LeaderboardEntry } from '@/components/employees/EmployeeLeaderboard';
+import LeaderboardTable from '@/components/leaderboard/LeaderboardTable';
 import AllPostsTable from '@/components/employees/AllPostsTable';
 import type { PostEntry } from '@/components/employees/AllPostsTable';
+import StatCard from '@/components/dashboard/StatCard';
 import Skeleton from '@/components/ui/Skeleton';
 import PageHeader from '@/components/ui/PageHeader';
-import { Search, Users } from 'lucide-react';
+import { Search, Globe, Users, TrendingUp, BarChart3, MessageCircle } from 'lucide-react';
 import useSWR from 'swr';
 import { useAppStore } from '@/stores/app-store';
 import { useState, useMemo } from 'react';
@@ -20,261 +19,103 @@ const TABS = [
   { label: 'All Posts', value: 'posts' as const },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyEmployee = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPost = any;
-
-const POST_TIME_RANGES = [
+const TIME_RANGES = [
   { label: '7d', value: 7 },
   { label: '14d', value: 14 },
   { label: '30d', value: 30 },
 ] as const;
+
+const SORT_OPTIONS = [
+  { label: 'Engagement', value: 'engagement' },
+  { label: 'Likes', value: 'likes' },
+  { label: 'Comments', value: 'comments' },
+  { label: 'Shares', value: 'shares' },
+  { label: 'Recent', value: 'recent' },
+] as const;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMention = any;
 
 export default function ContentEngineeringPage() {
   const {
     searchQuery, setSearchQuery,
     contentEngTab, setContentEngTab,
   } = useAppStore();
-  const [postsTimeRange, setPostsTimeRange] = useState<7 | 14 | 30>(30);
+  const [timeRange, setTimeRange] = useState<7 | 14 | 30>(30);
+  const [sort, setSort] = useState('engagement');
 
-  const { data: employees, isLoading: empLoading } = useSWR(
-    '/api/employees?department=Content Engineering',
+  const { data: mentions, isLoading } = useSWR(
+    `/api/mentions?range=${timeRange}&sort=${sort}&external=true`,
     fetcher,
   );
-  const { data: streaks } = useSWR('/api/streaks', fetcher);
-  const { data: config } = useSWR<{ mentionBonusMultiplier?: number }>('/api/config', fetcher);
-  const mentionMultiplier = config?.mentionBonusMultiplier ?? 2.0;
 
-  // Build employee ID set for filtering posts
-  const employeeIds = useMemo(() => {
-    if (!employees) return new Set<string>();
-    return new Set<string>(employees.map((e: AnyEmployee) => e.id));
-  }, [employees]);
+  const mentionsList = (mentions || []) as AnyMention[];
 
-  const { data: allPostsRaw } = useSWR('/api/posts?range=90', fetcher);
-  const { data: posts30Raw } = useSWR('/api/posts?range=30', fetcher);
+  // ── Overview stats ──
+  const stats = useMemo(() => {
+    if (!mentionsList.length) return { total: 0, uniqueAuthors: 0, totalEngagement: 0, avgEngagement: 0 };
+    const total = mentionsList.length;
+    const uniqueAuthors = new Set(mentionsList.map((m: AnyMention) => m.authorName)).size;
+    const totalEngagement = mentionsList.reduce(
+      (sum: number, m: AnyMention) => sum + (m.post.engagement?.engagementScore || 0), 0
+    );
+    const avgEngagement = total > 0 ? Math.round(totalEngagement / total) : 0;
+    return { total, uniqueAuthors, totalEngagement, avgEngagement };
+  }, [mentionsList]);
 
-  // Filter posts to only Content Engineering members
-  const allPosts = useMemo(() => {
-    if (!allPostsRaw) return null;
-    return allPostsRaw.filter((p: AnyPost) => employeeIds.has(p.authorId));
-  }, [allPostsRaw, employeeIds]);
-
-  const posts30 = useMemo(() => {
-    if (!posts30Raw) return null;
-    return posts30Raw.filter((p: AnyPost) => employeeIds.has(p.authorId));
-  }, [posts30Raw, employeeIds]);
-
-  // ── Overview tab data ──
-  const gridData = useMemo(() => {
-    if (!employees || !streaks || !posts30) return [];
-
-    const streakMap: Record<string, { currentStreak: number; isActive: boolean }> = {};
-    for (const s of streaks) {
-      streakMap[s.employeeId] = { currentStreak: s.currentStreak, isActive: s.isActive };
-    }
-
-    const now = new Date();
-    const weeklyPosts: Record<string, number[]> = {};
-    for (const e of employees) weeklyPosts[e.id] = [0, 0, 0, 0];
-    for (const p of posts30) {
-      const diff = Math.floor((now.getTime() - new Date(p.publishedAt).getTime()) / (7 * 86400000));
-      if (diff < 4 && weeklyPosts[p.authorId]) weeklyPosts[p.authorId][3 - diff]++;
-    }
-
-    const postCounts: Record<string, number> = {};
-    const lastPostDates: Record<string, string> = {};
-    for (const p of posts30) {
-      postCounts[p.authorId] = (postCounts[p.authorId] || 0) + 1;
-      if (!lastPostDates[p.authorId] || p.publishedAt > lastPostDates[p.authorId]) {
-        lastPostDates[p.authorId] = p.publishedAt;
-      }
-    }
-
-    let result = employees.map((e: AnyEmployee) => ({
-      id: e.id,
-      fullName: e.fullName,
-      jobTitle: e.jobTitle,
-      department: e.department,
-      avatarUrl: e.avatarUrl,
-      streak: streakMap[e.id]?.currentStreak || 0,
-      isStreakActive: streakMap[e.id]?.isActive || false,
-      recentWeeks: weeklyPosts[e.id] || [0, 0, 0, 0],
-      totalPosts: postCounts[e.id] || 0,
-      lastPostDate: lastPostDates[e.id] || '',
+  // ── Map mentions → PostEntry for AllPostsTable / TopPostsCarousel ──
+  const postEntries = useMemo((): PostEntry[] => {
+    let entries: PostEntry[] = mentionsList.map((m: AnyMention) => ({
+      id: m.id,
+      authorName: m.authorName,
+      authorAvatar: m.authorAvatarUrl || '',
+      textContent: m.post.textContent || '',
+      publishedAt: m.post.publishedAt,
+      likes: m.post.engagement?.likes || 0,
+      comments: m.post.engagement?.comments || 0,
+      shares: m.post.engagement?.shares || 0,
+      postUrl: m.post.url || '',
     }));
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter((e: AnyEmployee) =>
-        e.fullName.toLowerCase().includes(q) ||
-        e.jobTitle.toLowerCase().includes(q) ||
-        e.department.toLowerCase().includes(q)
-      );
-    }
-
-    result.sort((a: AnyEmployee, b: AnyEmployee) => a.fullName.localeCompare(b.fullName));
-
-    return result;
-  }, [employees, streaks, posts30, searchQuery]);
-
-  // ── Leaderboard tab data ──
-  const leaderboardData = useMemo((): LeaderboardEntry[] => {
-    if (!employees || !allPosts) return [];
-
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    // Build start date map for filtering pre-employment posts
-    const startDateMap: Record<string, Date | null> = {};
-    for (const e of employees) {
-      startDateMap[e.id] = e.companyStartDate ? new Date(e.companyStartDate) : null;
-    }
-
-    // Group posts by employee, filtering out posts before company start date
-    const postsByEmployee: Record<string, AnyPost[]> = {};
-    for (const e of employees) postsByEmployee[e.id] = [];
-    for (const p of allPosts) {
-      if (!postsByEmployee[p.authorId]) continue;
-      const startDate = startDateMap[p.authorId];
-      if (startDate && new Date(p.publishedAt) < startDate) continue;
-      postsByEmployee[p.authorId].push(p);
-    }
-
-    function calcPoints(post: AnyPost): number {
-      const base = (post.engagement?.likes || 0) * 0.5 + (post.engagement?.comments || 0) * 2 + (post.engagement?.shares || 0) * 3;
-      return post.mentionsCompany ? base * mentionMultiplier : base;
-    }
-
-    function calcConsecutiveDays(posts: AnyPost[]): number {
-      if (posts.length === 0) return 0;
-      const daysWithPosts = new Set<string>();
-      for (const p of posts) {
-        daysWithPosts.add(new Date(p.publishedAt).toISOString().split('T')[0]);
-      }
-      let streak = 0;
-      const d = new Date(now);
-      const todayStr = d.toISOString().split('T')[0];
-      d.setDate(d.getDate() - 1);
-      const yesterdayStr = d.toISOString().split('T')[0];
-
-      if (!daysWithPosts.has(todayStr) && !daysWithPosts.has(yesterdayStr)) return 0;
-
-      const checkDate = new Date(now);
-      if (!daysWithPosts.has(todayStr)) {
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
-
-      while (true) {
-        const key = checkDate.toISOString().split('T')[0];
-        if (daysWithPosts.has(key)) {
-          streak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-      return streak;
-    }
-
-    const entries: LeaderboardEntry[] = employees.map((e: AnyEmployee) => {
-      const empPosts = postsByEmployee[e.id] || [];
-      const totalPoints = empPosts.reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
-      const weeklyPoints = empPosts
-        .filter((p: AnyPost) => new Date(p.publishedAt) >= startOfWeek)
-        .reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
-      const points7d = empPosts
-        .filter((p: AnyPost) => new Date(p.publishedAt) >= sevenDaysAgo)
-        .reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
-      const points30d = empPosts
-        .filter((p: AnyPost) => new Date(p.publishedAt) >= thirtyDaysAgo)
-        .reduce((sum: number, p: AnyPost) => sum + calcPoints(p), 0);
-
-      const sortedPosts = [...empPosts].sort((a: AnyPost, b: AnyPost) =>
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-      );
-      const lastPost = sortedPosts[0];
-      const daysSinceLastPost = lastPost
-        ? Math.floor((now.getTime() - new Date(lastPost.publishedAt).getTime()) / 86400000)
-        : null;
-
-      return {
-        id: e.id,
-        fullName: e.fullName,
-        avatarUrl: e.avatarUrl,
-        daysSinceLastPost,
-        consecutiveDays: calcConsecutiveDays(empPosts),
-        weeklyPoints,
-        totalPoints,
-        points30d,
-        points7d,
-      };
-    });
-
-    entries.sort((a, b) => b.totalPoints - a.totalPoints);
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return entries.filter(e => e.fullName.toLowerCase().includes(q));
-    }
-
-    return entries;
-  }, [employees, allPosts, searchQuery, mentionMultiplier]);
-
-  // ── All Posts tab data ──
-  const allPostsData = useMemo((): PostEntry[] => {
-    if (!employees || !allPosts) return [];
-
-    const empMap: Record<string, { fullName: string; avatarUrl: string }> = {};
-    for (const e of employees) empMap[e.id] = { fullName: e.fullName, avatarUrl: e.avatarUrl };
-
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - postsTimeRange);
-
-    let result: PostEntry[] = allPosts
-      .filter((p: AnyPost) => new Date(p.publishedAt) >= cutoff)
-      .map((p: AnyPost) => {
-        const emp = empMap[p.authorId] || { fullName: 'Unknown', avatarUrl: '' };
-        return {
-          id: p.id,
-          authorName: emp.fullName,
-          authorAvatar: emp.avatarUrl,
-          textContent: p.textContent,
-          publishedAt: p.publishedAt,
-          likes: p.engagement?.likes || 0,
-          comments: p.engagement?.comments || 0,
-          shares: p.engagement?.shares || 0,
-          postUrl: p.url,
-        };
-      })
-      .sort((a: PostEntry, b: PostEntry) =>
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-      );
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
+      entries = entries.filter(
         p => p.authorName.toLowerCase().includes(q) || p.textContent.toLowerCase().includes(q)
       );
     }
 
-    return result;
-  }, [employees, allPosts, searchQuery, postsTimeRange]);
+    return entries;
+  }, [mentionsList, searchQuery]);
 
-  const isLoading = empLoading;
+  // ── Map mentions → LeaderboardTable format ──
+  const leaderboardMentions = useMemo(() => {
+    let entries = mentionsList.map((m: AnyMention, i: number) => ({
+      id: m.id,
+      rank: i + 1,
+      authorName: m.authorName,
+      authorAvatar: m.authorAvatarUrl || '',
+      postExcerpt: m.post.textContent || '',
+      likes: m.post.engagement?.likes || 0,
+      comments: m.post.engagement?.comments || 0,
+      shares: m.post.engagement?.shares || 0,
+      engagementScore: m.post.engagement?.engagementScore || 0,
+      postUrl: m.post.url || '',
+    }));
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      entries = entries.filter(
+        (e: { authorName: string; postExcerpt: string }) =>
+          e.authorName.toLowerCase().includes(q) || e.postExcerpt.toLowerCase().includes(q)
+      );
+    }
+
+    return entries;
+  }, [mentionsList, searchQuery]);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Content Engineering" accentLabel="Department" icon={Users} statValue={employees?.length} statLabel="members" />
+      <PageHeader title="Community" accentLabel="External Mentions" icon={Globe} statValue={stats.total} statLabel="mentions" />
 
       {/* Tabs */}
       <div className="flex gap-2">
@@ -293,38 +134,52 @@ export default function ContentEngineeringPage() {
         ))}
       </div>
 
-      {/* Search bar + time range filter */}
+      {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
           <input
             type="text"
-            placeholder={
-              contentEngTab === 'posts'
-                ? 'Search posts or posters...'
-                : 'Search members...'
-            }
+            placeholder="Search authors or posts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-elevated rounded-full py-3 pl-12 pr-4 text-white placeholder-neutral-400 outline-none focus:ring-2 focus:ring-linkify-green transition-all"
           />
         </div>
-        {contentEngTab === 'posts' && (
-          <div className="flex gap-1 flex-shrink-0">
-            {POST_TIME_RANGES.map((range) => (
-              <button
-                key={range.value}
-                onClick={() => setPostsTimeRange(range.value)}
-                className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
-                  postsTimeRange === range.value
-                    ? 'bg-white text-black'
-                    : 'bg-elevated text-neutral-300 hover:bg-highlight hover:text-white'
-                }`}
-              >
-                {range.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-1 flex-shrink-0">
+          {TIME_RANGES.map((range) => (
+            <button
+              key={range.value}
+              onClick={() => setTimeRange(range.value)}
+              className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                timeRange === range.value
+                  ? 'bg-white text-black'
+                  : 'bg-elevated text-neutral-300 hover:bg-highlight hover:text-white'
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+        {contentEngTab === 'leaderboard' && (
+          <>
+            <div className="w-px h-8 bg-highlight flex-shrink-0" />
+            <div className="flex gap-1 flex-shrink-0">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setSort(option.value)}
+                  className={`px-3 py-2.5 rounded-full text-sm transition-colors ${
+                    sort === option.value
+                      ? 'bg-linkify-green/20 text-linkify-green'
+                      : 'bg-elevated text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -332,13 +187,21 @@ export default function ContentEngineeringPage() {
       {contentEngTab === 'overview' && (
         <>
           {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {[...Array(10)].map((_, i) => (
-                <Skeleton key={i} variant="card" className="aspect-square rounded-lg" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} variant="card" className="h-28" />
               ))}
             </div>
           ) : (
-            <EmployeeGrid employees={gridData} />
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="External Mentions" value={stats.total} icon={MessageCircle} />
+                <StatCard title="Unique Authors" value={stats.uniqueAuthors} icon={Users} />
+                <StatCard title="Total Engagement" value={stats.totalEngagement.toLocaleString()} icon={TrendingUp} />
+                <StatCard title="Avg Engagement" value={stats.avgEngagement.toLocaleString()} icon={BarChart3} />
+              </div>
+              <AllPostsTable posts={postEntries} />
+            </>
           )}
         </>
       )}
@@ -346,24 +209,24 @@ export default function ContentEngineeringPage() {
       {contentEngTab === 'leaderboard' && (
         isLoading ? (
           <div className="space-y-2">
-            {[...Array(10)].map((_, i) => (
-              <Skeleton key={i} variant="card" className="h-16" />
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} variant="card" className="h-20" />
             ))}
           </div>
         ) : (
-          <EmployeeLeaderboard entries={leaderboardData} mentionMultiplier={mentionMultiplier} />
+          <LeaderboardTable mentions={leaderboardMentions} />
         )
       )}
 
       {contentEngTab === 'posts' && (
         isLoading ? (
           <div className="space-y-2">
-            {[...Array(10)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
               <Skeleton key={i} variant="card" className="h-14" />
             ))}
           </div>
         ) : (
-          <AllPostsTable posts={allPostsData} />
+          <AllPostsTable posts={postEntries} />
         )
       )}
     </div>
