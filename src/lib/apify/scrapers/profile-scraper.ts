@@ -1,4 +1,5 @@
 import { runActor, sleep, type ActorRunResult } from '@/lib/apify/client';
+import { sanitizeForDb } from '@/lib/utils/formatting';
 import type { Department } from '@prisma/client';
 
 const ACTOR_ID = 'harvestapi/linkedin-profile-scraper';
@@ -207,16 +208,16 @@ export function mapProfileToEmployee(profile: ApifyProfileOutput): MappedProfile
     ? { firstName: profile.firstName, lastName: profile.lastName }
     : parseName(fullName);
 
-  const headline = profile.headline || '';
-  const jobTitle = profile.jobTitle || profile.title || headline.split(' at ')[0] || '';
+  const headline = sanitizeForDb(profile.headline || '');
+  const jobTitle = sanitizeForDb(profile.jobTitle || profile.title || headline.split(' at ')[0] || '');
 
   return {
     linkedinUrl: linkedinUrl.replace(/\/+$/, '').split('?')[0],
-    firstName,
-    lastName,
-    fullName: fullName || `${firstName} ${lastName}`.trim(),
+    firstName: sanitizeForDb(firstName),
+    lastName: sanitizeForDb(lastName),
+    fullName: sanitizeForDb(fullName || `${firstName} ${lastName}`.trim()),
     headline,
-    about: profile.about || profile.summary || '',
+    about: sanitizeForDb(profile.about || profile.summary || ''),
     jobTitle,
     department: inferDepartment(headline),
     avatarUrl: extractUrl(profile.profilePicture) || extractUrl(profile.profileImageUrl) || extractUrl(profile.avatarUrl),

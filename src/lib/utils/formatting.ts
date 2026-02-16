@@ -13,6 +13,18 @@ export function formatNumber(n: number): string {
 }
 
 /**
+ * Strip null bytes and malformed Unicode escape sequences that PostgreSQL rejects.
+ */
+export function sanitizeForDb(text: string): string {
+  // Remove literal null bytes
+  // eslint-disable-next-line no-control-regex
+  let cleaned = text.replace(/\x00/g, '');
+  // Remove backslash-u-0000 sequences that appear as literal text
+  cleaned = cleaned.replace(/\\u0000/g, '');
+  return cleaned;
+}
+
+/**
  * Truncate text to a maximum length, appending "..." if truncated.
  */
 export function truncateText(text: string, maxLength: number): string {

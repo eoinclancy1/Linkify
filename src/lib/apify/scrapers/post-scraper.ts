@@ -1,5 +1,6 @@
 import { runActor, sleep, type ActorRunResult } from '@/lib/apify/client';
 import { calculateEngagementScore } from '@/lib/utils/engagement';
+import { sanitizeForDb } from '@/lib/utils/formatting';
 import type { PostType } from '@prisma/client';
 
 const ACTOR_ID = 'harvestapi/linkedin-profile-posts';
@@ -204,7 +205,7 @@ export function mapPostToDatabase(
 
   if (!linkedinPostId && !linkedinUrl) return null;
 
-  const textContent = post.text || post.textContent || post.content || '';
+  const textContent = sanitizeForDb(post.text || post.textContent || post.content || '');
 
   // Engagement: check nested "engagement" object first (harvestapi format), then top-level
   const eng = post.engagement;
