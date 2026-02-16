@@ -6,7 +6,10 @@ import type { PostEntry } from '@/components/employees/AllPostsTable';
 import StatCard from '@/components/dashboard/StatCard';
 import Skeleton from '@/components/ui/Skeleton';
 import PageHeader from '@/components/ui/PageHeader';
-import { Search, Globe, Users, TrendingUp, BarChart3, MessageCircle } from 'lucide-react';
+import {
+  Search, Globe, Users, TrendingUp, BarChart3, MessageCircle,
+  Heart, MessageSquare, Share2, GraduationCap, Award, Percent, Flame,
+} from 'lucide-react';
 import useSWR from 'swr';
 import { useAppStore } from '@/stores/app-store';
 import { useState, useMemo } from 'react';
@@ -33,6 +36,22 @@ const SORT_OPTIONS = [
   { label: 'Recent', value: 'recent' },
 ] as const;
 
+// Cohort-related keywords (matched case-insensitive)
+const COHORT_KEYWORDS = [
+  'graduation', 'graduated', 'graduating', 'graduate',
+  'cohort',
+  'demo day', 'demoday',
+  'university',
+  'academy',
+  'workflow', 'workflows',
+];
+
+const COHORT_REGEX = new RegExp(COHORT_KEYWORDS.join('|'), 'i');
+
+function isCohortPost(text: string): boolean {
+  return COHORT_REGEX.test(text);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMention = any;
 
@@ -53,14 +72,69 @@ export default function ContentEngineeringPage() {
 
   // ── Overview stats ──
   const stats = useMemo(() => {
-    if (!mentionsList.length) return { total: 0, uniqueAuthors: 0, totalEngagement: 0, avgEngagement: 0 };
+    const empty = {
+      total: 0, uniqueAuthors: 0, totalEngagement: 0, avgEngagement: 0,
+      totalLikes: 0, totalComments: 0, totalShares: 0, topPostScore: 0,
+      cohortCount: 0, cohortAuthors: 0, cohortEngagement: 0, cohortPct: 0,
+      topCohortAuthor: '—', topCohortAuthorCount: 0,
+    };
+    if (!mentionsList.length) return empty;
+
     const total = mentionsList.length;
     const uniqueAuthors = new Set(mentionsList.map((m: AnyMention) => m.authorName)).size;
-    const totalEngagement = mentionsList.reduce(
-      (sum: number, m: AnyMention) => sum + (m.post.engagement?.engagementScore || 0), 0
-    );
+
+    let totalEngagement = 0;
+    let totalLikes = 0;
+    let totalComments = 0;
+    let totalShares = 0;
+    let topPostScore = 0;
+
+    // Cohort tracking
+    let cohortCount = 0;
+    let cohortEngagement = 0;
+    const cohortAuthorSet = new Set<string>();
+    const cohortAuthorCounts = new Map<string, number>();
+
+    for (const m of mentionsList) {
+      const eng = m.post.engagement?.engagementScore || 0;
+      const likes = m.post.engagement?.likes || 0;
+      const comments = m.post.engagement?.comments || 0;
+      const shares = m.post.engagement?.shares || 0;
+      const text = m.post.textContent || '';
+
+      totalEngagement += eng;
+      totalLikes += likes;
+      totalComments += comments;
+      totalShares += shares;
+      if (eng > topPostScore) topPostScore = eng;
+
+      if (isCohortPost(text)) {
+        cohortCount++;
+        cohortEngagement += eng;
+        cohortAuthorSet.add(m.authorName);
+        cohortAuthorCounts.set(m.authorName, (cohortAuthorCounts.get(m.authorName) || 0) + 1);
+      }
+    }
+
     const avgEngagement = total > 0 ? Math.round(totalEngagement / total) : 0;
-    return { total, uniqueAuthors, totalEngagement, avgEngagement };
+    const cohortPct = total > 0 ? Math.round((cohortCount / total) * 100) : 0;
+
+    // Find most active cohort author
+    let topCohortAuthor = '—';
+    let topCohortAuthorCount = 0;
+    for (const [name, count] of cohortAuthorCounts) {
+      if (count > topCohortAuthorCount) {
+        topCohortAuthor = name;
+        topCohortAuthorCount = count;
+      }
+    }
+
+    return {
+      total, uniqueAuthors, totalEngagement, avgEngagement,
+      totalLikes, totalComments, totalShares, topPostScore,
+      cohortCount, cohortAuthors: cohortAuthorSet.size, cohortEngagement, cohortPct,
+      topCohortAuthor, topCohortAuthorCount,
+    };
   }, [mentionsList]);
 
   // ── Map mentions → PostEntry for AllPostsTable / TopPostsCarousel ──
@@ -187,21 +261,53 @@ export default function ContentEngineeringPage() {
       {contentEngTab === 'overview' && (
         <>
           {isLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} variant="card" className="h-28" />
+            <div className="space-y-6">
+              {[...Array(3)].map((_, section) => (
+                <div key={section} className="space-y-3">
+                  <Skeleton variant="card" className="h-5 w-40" />
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                      <Skeleton key={i} variant="card" className="h-28" />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard title="External Mentions" value={stats.total} icon={MessageCircle} />
-                <StatCard title="Unique Authors" value={stats.uniqueAuthors} icon={Users} />
-                <StatCard title="Total Engagement" value={stats.totalEngagement.toLocaleString()} icon={TrendingUp} />
-                <StatCard title="Avg Engagement" value={stats.avgEngagement.toLocaleString()} icon={BarChart3} />
+            <div className="space-y-8">
+              {/* Section: All External Mentions */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">All External Mentions</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard title="Total Mentions" value={stats.total} icon={MessageCircle} />
+                  <StatCard title="Unique Authors" value={stats.uniqueAuthors} icon={Users} />
+                  <StatCard title="Total Engagement" value={stats.totalEngagement.toLocaleString()} icon={TrendingUp} />
+                  <StatCard title="Avg Engagement" value={stats.avgEngagement.toLocaleString()} icon={BarChart3} />
+                </div>
               </div>
-              <AllPostsTable posts={postEntries} />
-            </>
+
+              {/* Section: Cohort Activity */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">Cohort Activity</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard title="Cohort Posts" value={stats.cohortCount} icon={GraduationCap} />
+                  <StatCard title="Cohort Authors" value={stats.cohortAuthors} icon={Users} />
+                  <StatCard title="Cohort Engagement" value={stats.cohortEngagement.toLocaleString()} icon={TrendingUp} />
+                  <StatCard title="Cohort Share" value={`${stats.cohortPct}%`} icon={Percent} />
+                </div>
+              </div>
+
+              {/* Section: Engagement Breakdown */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-neutral-500">Engagement Breakdown</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard title="Total Reactions" value={stats.totalLikes.toLocaleString()} icon={Heart} />
+                  <StatCard title="Total Comments" value={stats.totalComments.toLocaleString()} icon={MessageSquare} />
+                  <StatCard title="Total Shares" value={stats.totalShares.toLocaleString()} icon={Share2} />
+                  <StatCard title="Top Post Score" value={stats.topPostScore.toLocaleString()} icon={Flame} />
+                </div>
+              </div>
+            </div>
           )}
         </>
       )}

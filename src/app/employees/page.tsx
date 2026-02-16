@@ -7,10 +7,18 @@ import AllPostsTable from '@/components/employees/AllPostsTable';
 import type { PostEntry } from '@/components/employees/AllPostsTable';
 import Skeleton from '@/components/ui/Skeleton';
 import PageHeader from '@/components/ui/PageHeader';
+import { getStatus, type Status } from '@/components/employees/StatusBadge';
 import { Search, Users } from 'lucide-react';
 import useSWR from 'swr';
 import { useAppStore } from '@/stores/app-store';
 import { useState, useMemo } from 'react';
+
+const STATUS_ALBUMS: { status: Status; album: string; subtitle: string; gradient: string }[] = [
+  { status: 'healthy', album: 'Top Hits', subtitle: 'Posted in the last 25 days', gradient: 'from-green-600 to-emerald-900' },
+  { status: 'starving', album: 'On Thin Ice', subtitle: '26-29 days since last post', gradient: 'from-orange-500 to-amber-900' },
+  { status: 'dormant', album: 'Gone Dark', subtitle: '30+ days since last post', gradient: 'from-red-600 to-red-950' },
+  { status: 'quiet', album: 'Unreleased', subtitle: 'No posts yet', gradient: 'from-neutral-500 to-neutral-800' },
+];
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
@@ -38,6 +46,7 @@ export default function EmployeesPage() {
     employeeTab, setEmployeeTab,
   } = useAppStore();
   const [postsTimeRange, setPostsTimeRange] = useState<7 | 14 | 30>(30);
+  const [statusFilter, setStatusFilter] = useState<Status | null>(null);
 
   const { data: employees, isLoading: empLoading } = useSWR('/api/employees', fetcher);
   const { data: streaks } = useSWR('/api/streaks', fetcher);
@@ -72,18 +81,27 @@ export default function EmployeesPage() {
       }
     }
 
-    let result = employees.map((e: AnyEmployee) => ({
-      id: e.id,
-      fullName: e.fullName,
-      jobTitle: e.jobTitle,
-      department: e.department,
-      avatarUrl: e.avatarUrl,
-      streak: streakMap[e.id]?.currentStreak || 0,
-      isStreakActive: streakMap[e.id]?.isActive || false,
-      recentWeeks: weeklyPosts[e.id] || [0, 0, 0, 0],
-      totalPosts: postCounts[e.id] || 0,
-      lastPostDate: lastPostDates[e.id] || '',
-    }));
+    const now2 = new Date();
+    let result = employees.map((e: AnyEmployee) => {
+      const lastPost = lastPostDates[e.id];
+      const daysSinceLastPost = lastPost
+        ? Math.floor((now2.getTime() - new Date(lastPost).getTime()) / 86400000)
+        : null;
+      return {
+        id: e.id,
+        fullName: e.fullName,
+        jobTitle: e.jobTitle,
+        department: e.department,
+        avatarUrl: e.avatarUrl,
+        streak: streakMap[e.id]?.currentStreak || 0,
+        isStreakActive: streakMap[e.id]?.isActive || false,
+        recentWeeks: weeklyPosts[e.id] || [0, 0, 0, 0],
+        totalPosts: postCounts[e.id] || 0,
+        lastPostDate: lastPostDates[e.id] || '',
+        daysSinceLastPost,
+        status: getStatus(daysSinceLastPost),
+      };
+    });
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -94,10 +112,33 @@ export default function EmployeesPage() {
       );
     }
 
+    if (statusFilter) {
+      result = result.filter((e: AnyEmployee) => e.status === statusFilter);
+    }
+
     result.sort((a: AnyEmployee, b: AnyEmployee) => a.fullName.localeCompare(b.fullName));
 
     return result;
-  }, [employees, streaks, posts30, searchQuery]);
+  }, [employees, streaks, posts30, searchQuery, statusFilter]);
+
+  // ── Status counts (unfiltered) ──
+  const statusCounts = useMemo(() => {
+    if (!employees || !posts30) return {} as Record<Status, number>;
+    const now2 = new Date();
+    const lastPostDates2: Record<string, string> = {};
+    for (const p of posts30) {
+      if (!lastPostDates2[p.authorId] || p.publishedAt > lastPostDates2[p.authorId]) {
+        lastPostDates2[p.authorId] = p.publishedAt;
+      }
+    }
+    const counts: Record<Status, number> = { healthy: 0, starving: 0, dormant: 0, quiet: 0 };
+    for (const e of employees) {
+      const lastPost = lastPostDates2[e.id];
+      const days = lastPost ? Math.floor((now2.getTime() - new Date(lastPost).getTime()) / 86400000) : null;
+      counts[getStatus(days)]++;
+    }
+    return counts;
+  }, [employees, posts30]);
 
   // ── Leaderboard tab data ──
   const leaderboardData = useMemo((): LeaderboardEntry[] => {
@@ -230,7 +271,10 @@ export default function EmployeesPage() {
     let result: PostEntry[] = allPosts
       .filter((p: AnyPost) => new Date(p.publishedAt) >= cutoff)
       .map((p: AnyPost) => {
-        const emp = empMap[p.authorId] || { fullName: 'Unknown', avatarUrl: '' };
+        const emp = empMap[p.authorId] || {
+          fullName: p.externalAuthorName || 'Unknown',
+          avatarUrl: p.externalAuthorAvatarUrl || '',
+        };
         return {
           id: p.id,
           authorName: emp.fullName,
@@ -318,6 +362,46 @@ export default function EmployeesPage() {
       {/* Tab content */}
       {employeeTab === 'overview' && (
         <>
+          {/* Status Album Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {STATUS_ALBUMS.map(({ status, album, subtitle, gradient }) => {
+              const count = statusCounts[status] ?? 0;
+              const isActive = statusFilter === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(isActive ? null : status)}
+                  className={`relative overflow-hidden rounded-lg p-5 text-left transition-all duration-200 group ${
+                    isActive
+                      ? 'ring-2 ring-white scale-[1.02]'
+                      : 'hover:scale-[1.02] hover:brightness-110'
+                  }`}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
+                  <div className="relative z-10">
+                    <p className="text-2xl font-bold text-white">{count}</p>
+                    <p className="text-sm font-semibold text-white/90 mt-1">{album}</p>
+                    <p className="text-xs text-white/60 mt-0.5">{subtitle}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {statusFilter && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-neutral-400">
+                Filtered by: <span className="text-white font-medium">{STATUS_ALBUMS.find(a => a.status === statusFilter)?.album}</span>
+              </span>
+              <button
+                onClick={() => setStatusFilter(null)}
+                className="text-xs text-neutral-400 hover:text-white transition-colors underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {[...Array(10)].map((_, i) => (

@@ -1,6 +1,6 @@
 'use client';
 
-type Status = 'healthy' | 'starving' | 'dormant' | 'quiet';
+export type Status = 'healthy' | 'starving' | 'dormant' | 'quiet';
 
 interface StatusBadgeProps {
   daysSinceLastPost: number | null;
@@ -25,7 +25,7 @@ const statusConfig: Record<Status, { label: string; className: string }> = {
   },
 };
 
-function getStatus(daysSinceLastPost: number | null): Status {
+export function getStatus(daysSinceLastPost: number | null): Status {
   if (daysSinceLastPost === null) return 'quiet';
   if (daysSinceLastPost <= 25) return 'healthy';
   if (daysSinceLastPost <= 29) return 'starving';

@@ -23,15 +23,21 @@ const SORT_OPTIONS = [
   { label: 'Recent', value: 'recent' },
 ] as const;
 
+const AUTHOR_FILTERS = [
+  { label: 'All', value: 'all' },
+  { label: 'Employees', value: 'employees' },
+  { label: 'Community', value: 'community' },
+] as const;
+
 export default function LeaderboardPage() {
-  const { timeRange, setTimeRange, leaderboardSort, setLeaderboardSort } = useAppStore();
+  const { timeRange, setTimeRange, leaderboardSort, setLeaderboardSort, leaderboardAuthorFilter, setLeaderboardAuthorFilter } = useAppStore();
 
   const { data: mentions, isLoading } = useSWR(
     `/api/mentions?range=${timeRange}&sort=${leaderboardSort}`,
     fetcher
   );
 
-  const mentionsList = (mentions || []) as {
+  const allMentions = (mentions || []) as {
     id: string;
     rank: number;
     authorName: string;
@@ -40,9 +46,16 @@ export default function LeaderboardPage() {
     post: {
       textContent: string;
       url: string;
+      isExternal?: boolean;
       engagement: { likes: number; comments: number; shares: number; engagementScore: number };
     };
   }[];
+
+  const mentionsList = allMentions.filter((m) => {
+    if (leaderboardAuthorFilter === 'employees') return !m.post.isExternal;
+    if (leaderboardAuthorFilter === 'community') return m.post.isExternal;
+    return true;
+  });
 
   const topMention = mentionsList[0] ?? null;
   const totalMentions = mentionsList.length;
@@ -145,6 +158,24 @@ export default function LeaderboardPage() {
               }`}
             >
               {option.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px bg-highlight mx-2" />
+
+        <div className="flex gap-2">
+          {AUTHOR_FILTERS.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setLeaderboardAuthorFilter(filter.value)}
+              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                leaderboardAuthorFilter === filter.value
+                  ? 'bg-linkify-green/20 text-linkify-green'
+                  : 'bg-elevated text-neutral-400 hover:text-white'
+              }`}
+            >
+              {filter.label}
             </button>
           ))}
         </div>

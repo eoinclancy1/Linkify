@@ -243,7 +243,10 @@ export default function AdvisorsPage() {
     let result: PostEntry[] = allPosts
       .filter((p: AnyPost) => new Date(p.publishedAt) >= cutoff)
       .map((p: AnyPost) => {
-        const emp = empMap[p.authorId] || { fullName: 'Unknown', avatarUrl: '' };
+        const emp = empMap[p.authorId] || {
+          fullName: p.externalAuthorName || 'Unknown',
+          avatarUrl: p.externalAuthorAvatarUrl || '',
+        };
         return {
           id: p.id,
           authorName: emp.fullName,

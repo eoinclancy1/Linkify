@@ -52,8 +52,11 @@ export default function DashboardPage() {
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
       )
       .slice(0, 10)
-      .map((p: { id: string; authorId: string; textContent: string; publishedAt: string; mentionsCompany: boolean; type: string }) => {
-        const emp = empMap[p.authorId] || { fullName: 'Unknown', avatarUrl: '' };
+      .map((p: { id: string; authorId: string; textContent: string; publishedAt: string; mentionsCompany: boolean; type: string; externalAuthorName?: string; externalAuthorAvatarUrl?: string }) => {
+        const emp = empMap[p.authorId] || {
+          fullName: p.externalAuthorName || 'Unknown',
+          avatarUrl: p.externalAuthorAvatarUrl || '',
+        };
         const now = Date.now();
         const diff = now - new Date(p.publishedAt).getTime();
         const hours = Math.floor(diff / 3600000);

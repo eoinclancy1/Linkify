@@ -15,6 +15,8 @@ interface AppState {
   setContentEngTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
   advisorTab: 'overview' | 'leaderboard' | 'posts';
   setAdvisorTab: (tab: 'overview' | 'leaderboard' | 'posts') => void;
+  leaderboardAuthorFilter: 'all' | 'employees' | 'community';
+  setLeaderboardAuthorFilter: (filter: 'all' | 'employees' | 'community') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
 }
@@ -34,6 +36,8 @@ export const useAppStore = create<AppState>((set) => ({
   setContentEngTab: (tab) => set({ contentEngTab: tab }),
   advisorTab: 'overview',
   setAdvisorTab: (tab) => set({ advisorTab: tab }),
+  leaderboardAuthorFilter: 'all',
+  setLeaderboardAuthorFilter: (filter) => set({ leaderboardAuthorFilter: filter }),
   sidebarOpen: false,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 }));
