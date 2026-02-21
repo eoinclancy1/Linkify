@@ -10,6 +10,7 @@ interface TracklistPost {
   authorName: string;
   authorAvatar: string | null;
   excerpt: string;
+  fullText: string;
   timeAgo: string;
   mentionsCompany: boolean;
   type: string;
@@ -26,73 +27,100 @@ interface RecentPostsTracklistProps {
 
 function TrackRow({ post, index }: { post: TracklistPost; index: number }) {
   const [hovered, setHovered] = useState(false);
-  const showImage = hovered && post.mediaUrl;
+  const hasImage = !!post.mediaUrl;
+  const expanded = hovered && hasImage;
 
   return (
     <a
       href={post.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group grid items-center gap-3 px-4 py-2.5 rounded-md transition-colors duration-150 hover:bg-white/[0.06] cursor-pointer"
-      style={{ gridTemplateColumns: '24px 48px 1fr auto auto' }}
+      className="group block rounded-md transition-colors duration-150 hover:bg-white/[0.06] cursor-pointer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Track number */}
-      <span className="text-sm text-neutral-500 text-right tabular-nums group-hover:text-white transition-colors">
-        {index + 1}
-      </span>
+      {/* Default compact row */}
+      <div
+        className="grid items-center gap-3 px-4 py-2.5"
+        style={{ gridTemplateColumns: '24px 48px 1fr auto auto' }}
+      >
+        {/* Track number */}
+        <span className="text-sm text-neutral-500 text-right tabular-nums group-hover:text-white transition-colors">
+          {index + 1}
+        </span>
 
-      {/* Avatar / Image thumbnail */}
-      <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0">
-        {showImage ? (
-          <Image
-            src={post.mediaUrl!}
-            alt="Post media"
-            fill
-            className="object-cover animate-chart-fade-in"
-            sizes="48px"
-          />
-        ) : (
+        {/* Avatar */}
+        <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0">
           <div className="w-full h-full flex items-center justify-center">
             <Avatar src={post.authorAvatar} name={post.authorName} size="md" />
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Title + artist */}
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-white truncate group-hover:text-linkify-green transition-colors">
-          {post.excerpt}
-        </p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          {post.mentionsCompany && (
-            <AtSign className="w-3 h-3 text-linkify-green flex-shrink-0" />
-          )}
-          <p className="text-xs text-neutral-400 truncate">{post.authorName}</p>
+        {/* Title + artist */}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white truncate group-hover:text-linkify-green transition-colors">
+            {post.excerpt}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            {post.mentionsCompany && (
+              <AtSign className="w-3 h-3 text-linkify-green flex-shrink-0" />
+            )}
+            <p className="text-xs text-neutral-400 truncate">{post.authorName}</p>
+          </div>
+        </div>
+
+        {/* Engagement stats */}
+        <div className="hidden sm:flex items-center gap-3 text-neutral-500">
+          <span className="flex items-center gap-1 text-xs">
+            <Heart className="w-3 h-3" />
+            {post.likes.toLocaleString()}
+          </span>
+          <span className="flex items-center gap-1 text-xs">
+            <MessageCircle className="w-3 h-3" />
+            {post.comments.toLocaleString()}
+          </span>
+          <span className="flex items-center gap-1 text-xs">
+            <Share2 className="w-3 h-3" />
+            {post.shares.toLocaleString()}
+          </span>
+        </div>
+
+        {/* Time + external link on hover */}
+        <div className="flex items-center gap-2 min-w-[60px] justify-end">
+          <span className="text-xs text-neutral-500 tabular-nums">{post.timeAgo}</span>
+          <ExternalLink className="w-3.5 h-3.5 text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
 
-      {/* Engagement stats */}
-      <div className="hidden sm:flex items-center gap-3 text-neutral-500">
-        <span className="flex items-center gap-1 text-xs">
-          <Heart className="w-3 h-3" />
-          {post.likes.toLocaleString()}
-        </span>
-        <span className="flex items-center gap-1 text-xs">
-          <MessageCircle className="w-3 h-3" />
-          {post.comments.toLocaleString()}
-        </span>
-        <span className="flex items-center gap-1 text-xs">
-          <Share2 className="w-3 h-3" />
-          {post.shares.toLocaleString()}
-        </span>
-      </div>
+      {/* Expanded image section */}
+      <div
+        className="overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
+        style={{
+          maxHeight: expanded ? '160px' : '0px',
+          opacity: expanded ? 1 : 0,
+        }}
+      >
+        <div className="flex gap-4 px-4 pb-3 pt-1">
+          {/* More text on the left */}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-neutral-300 leading-relaxed line-clamp-5">
+              {post.fullText}
+            </p>
+          </div>
 
-      {/* Time + external link on hover */}
-      <div className="flex items-center gap-2 min-w-[60px] justify-end">
-        <span className="text-xs text-neutral-500 tabular-nums">{post.timeAgo}</span>
-        <ExternalLink className="w-3.5 h-3.5 text-neutral-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+          {/* Post image on the right */}
+          {post.mediaUrl && (
+            <div className="relative w-36 h-[136px] rounded-lg overflow-hidden flex-shrink-0">
+              <Image
+                src={post.mediaUrl}
+                alt="Post media"
+                fill
+                className="object-cover"
+                sizes="144px"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </a>
   );

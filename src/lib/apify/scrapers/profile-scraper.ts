@@ -3,8 +3,8 @@ import { sanitizeForDb } from '@/lib/utils/formatting';
 import type { Department } from '@prisma/client';
 
 const ACTOR_ID = 'harvestapi/linkedin-profile-scraper';
-const BATCH_SIZE = 100;
-const BATCH_DELAY_MS = 10_000;
+const BATCH_SIZE = 10;
+const BATCH_DELAY_MS = 5_000;
 
 interface ProfileScraperInput {
   urls: string[];

@@ -506,6 +506,8 @@ async function upsertPost(authorId: string, post: MappedPost): Promise<'created'
     await prisma.post.update({
       where: { linkedinPostId: post.linkedinPostId },
       data: {
+        authorId,
+        isExternal: false,
         textContent: post.textContent,
         publishedAt: post.publishedAt,
         linkedinUrl: post.linkedinUrl,

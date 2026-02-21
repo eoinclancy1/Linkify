@@ -156,6 +156,7 @@ export default function DashboardPage() {
           authorName: emp.fullName,
           authorAvatar: emp.avatarUrl,
           excerpt: p.textContent.length > 80 ? p.textContent.slice(0, 80) + '...' : p.textContent,
+          fullText: p.textContent,
           timeAgo,
           mentionsCompany: p.mentionsCompany,
           type: p.type,

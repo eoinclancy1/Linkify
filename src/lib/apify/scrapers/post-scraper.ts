@@ -304,6 +304,9 @@ function resolveAuthorId(
   return null;
 }
 
+const POST_BATCH_SIZE = 10;
+const POST_BATCH_DELAY_MS = 5_000;
+
 export async function scrapePostsForProfiles(
   profiles: Array<{ profileUrl: string; authorId: string }>,
   companyUrl: string,
@@ -319,36 +322,49 @@ export async function scrapePostsForProfiles(
     if (slug) slugToAuthorId.set(slug, authorId);
   }
 
-  // Send all profile URLs in a single actor call
-  const input: PostScraperInput = {
-    targetUrls: profiles.map((p) => p.profileUrl),
-    postedLimit: 'month',
-    maxPosts: 0,
-    includeReposts: false,
-  };
-
-  const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
-
-  // Attribute each post to the correct author
+  // Initialize postsByAuthor for all profiles
   const postsByAuthor = new Map<string, MappedPost[]>();
   for (const { authorId } of profiles) {
     postsByAuthor.set(authorId, []);
   }
 
-  for (const item of result.items) {
-    if (isRepost(item)) continue;
+  const runIds: string[] = [];
+  let totalCost = 0;
 
-    // Skip company-authored posts
-    if (item.author?.type === 'company') continue;
+  // Batch into groups of 10 (Apify actor limit)
+  for (let i = 0; i < profiles.length; i += POST_BATCH_SIZE) {
+    const batch = profiles.slice(i, i + POST_BATCH_SIZE);
 
-    const authorId = resolveAuthorId(item, slugToAuthorId);
-    if (!authorId) continue;
+    const input: PostScraperInput = {
+      targetUrls: batch.map((p) => p.profileUrl),
+      postedLimit: 'month',
+      maxPosts: 0,
+      includeReposts: false,
+    };
 
-    const mapped = mapPostToDatabase(item, companyUrl);
-    if (!mapped) continue;
+    const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
+    runIds.push(result.runId);
+    totalCost += result.costUsd;
 
-    postsByAuthor.get(authorId)!.push(mapped);
+    // Attribute each post to the correct author
+    for (const item of result.items) {
+      if (isRepost(item)) continue;
+      if (item.author?.type === 'company') continue;
+
+      const authorId = resolveAuthorId(item, slugToAuthorId);
+      if (!authorId) continue;
+
+      const mapped = mapPostToDatabase(item, companyUrl);
+      if (!mapped) continue;
+
+      postsByAuthor.get(authorId)!.push(mapped);
+    }
+
+    // Sleep between batches (but not after the last one)
+    if (i + POST_BATCH_SIZE < profiles.length) {
+      await sleep(POST_BATCH_DELAY_MS);
+    }
   }
 
-  return { runIds: [result.runId], postsByAuthor, costUsd: result.costUsd };
+  return { runIds, postsByAuthor, costUsd: totalCost };
 }
