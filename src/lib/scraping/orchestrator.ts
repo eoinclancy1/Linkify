@@ -207,7 +207,7 @@ export class ScrapeOrchestrator {
             about: profile.about,
             jobTitle: profile.jobTitle,
             department: profile.department,
-            avatarUrl: profile.avatarUrl,
+            ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
             experience: (profile.experience as Prisma.InputJsonValue) ?? undefined,
             education: (profile.education as Prisma.InputJsonValue) ?? undefined,
             skills: (profile.skills as Prisma.InputJsonValue) ?? undefined,

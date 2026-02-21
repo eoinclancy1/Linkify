@@ -26,14 +26,22 @@ export default function EmployeeCard({
     <Link href={`/employees/${id}`}>
       <div className="bg-surface rounded-lg p-4 hover:bg-elevated transition-all duration-300 group cursor-pointer">
         {/* Square image with hover play button */}
-        <div className="relative aspect-square w-full mb-4 rounded-md overflow-hidden shadow-lg">
-          <Image
-            src={avatarUrl}
-            alt={fullName}
-            fill
-            className="object-cover"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          />
+        <div className="relative aspect-square w-full mb-4 rounded-md overflow-hidden shadow-lg bg-elevated">
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt={fullName}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neutral-700 to-neutral-900">
+              <span className="text-3xl font-bold text-neutral-400">
+                {fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+              </span>
+            </div>
+          )}
 
           {/* Play button - appears on hover */}
           <div className="absolute bottom-2 right-2 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">

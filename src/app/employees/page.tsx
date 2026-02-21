@@ -14,8 +14,8 @@ import { useAppStore } from '@/stores/app-store';
 import { useState, useMemo } from 'react';
 
 const STATUS_ALBUMS: { status: Status; album: string; subtitle: string; gradient: string }[] = [
-  { status: 'healthy', album: 'Top Hits', subtitle: 'Posted in the last 25 days', gradient: 'from-green-600 to-emerald-900' },
-  { status: 'starving', album: 'On Thin Ice', subtitle: '26-29 days since last post', gradient: 'from-orange-500 to-amber-900' },
+  { status: 'healthy', album: 'Top Hits', subtitle: 'Posted in the last 14 days', gradient: 'from-green-600 to-emerald-900' },
+  { status: 'starving', album: 'On Thin Ice', subtitle: '15-29 days since last post', gradient: 'from-orange-500 to-amber-900' },
   { status: 'dormant', album: 'Gone Dark', subtitle: '30+ days since last post', gradient: 'from-red-600 to-red-950' },
   { status: 'quiet', album: 'Unreleased', subtitle: 'No posts yet', gradient: 'from-neutral-500 to-neutral-800' },
 ];
@@ -269,12 +269,9 @@ export default function EmployeesPage() {
     cutoff.setDate(cutoff.getDate() - postsTimeRange);
 
     let result: PostEntry[] = allPosts
-      .filter((p: AnyPost) => new Date(p.publishedAt) >= cutoff)
+      .filter((p: AnyPost) => new Date(p.publishedAt) >= cutoff && empMap[p.authorId])
       .map((p: AnyPost) => {
-        const emp = empMap[p.authorId] || {
-          fullName: p.externalAuthorName || 'Unknown',
-          avatarUrl: p.externalAuthorAvatarUrl || '',
-        };
+        const emp = empMap[p.authorId];
         return {
           id: p.id,
           authorName: emp.fullName,

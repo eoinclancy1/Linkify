@@ -30,13 +30,14 @@ export default function DashboardPage() {
     }
     return [...employees]
       .sort((a: { id: string }, b: { id: string }) => (postCounts[b.id] || 0) - (postCounts[a.id] || 0))
-      .slice(0, 5)
+      .slice(0, 4)
       .map((e: { id: string; fullName: string; jobTitle: string; avatarUrl: string }) => ({
         id: e.id,
         fullName: e.fullName,
         jobTitle: e.jobTitle,
         avatarUrl: e.avatarUrl,
         streak: streakMap[e.id] || 0,
+        postCount: postCounts[e.id] || 0,
       }));
   })();
 

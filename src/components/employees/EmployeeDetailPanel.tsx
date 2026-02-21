@@ -1,6 +1,6 @@
 'use client';
 
-import { Flame, Trophy, FileText, TrendingUp } from 'lucide-react';
+import { Flame, Trophy, FileText, TrendingUp, Linkedin } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import type { Employee, PostingStreak } from '@/types';
@@ -39,6 +39,17 @@ export default function EmployeeDetailPanel({ employee, streak, posts30dCount, a
         <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-[#22c55e]/6 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#4ade80]/10 rounded-full blur-3xl" />
         <div className="relative z-10 p-8">
+          {employee.linkedinProfileUrl && (
+            <a
+              href={employee.linkedinProfileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              title="View LinkedIn profile"
+            >
+              <Linkedin className="w-5 h-5 text-white" />
+            </a>
+          )}
           <div className="flex flex-col items-center text-center">
             <Avatar src={employee.avatarUrl} name={employee.fullName} size="xl" className="ring-2 ring-[#4ade80]/20 shadow-2xl shadow-black/60" />
             <h1 className="mt-4 text-2xl font-extrabold text-white">{employee.fullName}</h1>

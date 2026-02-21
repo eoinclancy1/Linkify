@@ -27,7 +27,7 @@ const statusConfig: Record<Status, { label: string; className: string }> = {
 
 export function getStatus(daysSinceLastPost: number | null): Status {
   if (daysSinceLastPost === null) return 'quiet';
-  if (daysSinceLastPost <= 25) return 'healthy';
+  if (daysSinceLastPost <= 14) return 'healthy';
   if (daysSinceLastPost <= 29) return 'starving';
   return 'dormant';
 }

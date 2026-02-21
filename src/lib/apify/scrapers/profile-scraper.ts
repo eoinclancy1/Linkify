@@ -22,9 +22,11 @@ interface ApifyProfileOutput {
   summary?: string;
   jobTitle?: string;
   title?: string;
-  profilePicture?: string | { url?: string };
-  profileImageUrl?: string | { url?: string };
-  avatarUrl?: string | { url?: string };
+  profilePicture?: string | { url?: string; sizes?: unknown };
+  profileImageUrl?: string | { url?: string; sizes?: unknown };
+  profilePictureUrl?: string | { url?: string; sizes?: unknown };
+  avatarUrl?: string | { url?: string; sizes?: unknown };
+  img?: string | { url?: string; sizes?: unknown };
   experience?: unknown[];
   education?: unknown[];
   skills?: unknown[] | string[];
@@ -113,8 +115,13 @@ function parseStartDate(startDate: unknown): Date | null {
 /** Infer role from headline — advisors, consultants, fractional roles → ADVISOR */
 export function inferRole(headline: string): 'EMPLOYEE' | 'ADVISOR' {
   const h = headline.toLowerCase();
-  if (/\b(advisor|consultant|fractional)\b/i.test(h) &&
-      !/\b(vp|vice president|head of|director|manager|lead)\b/i.test(h)) {
+  // If headline contains advisor/consultant/fractional keywords, classify as ADVISOR
+  // Only override to EMPLOYEE if a senior title (VP, Director, etc.) appears near "airops"
+  if (/\b(advisor|consultant|fractional)\b/i.test(h)) {
+    // Check if a senior title is directly associated with AirOps (e.g. "VP Growth at AirOps")
+    if (/\b(vp|vice president|head of|director|manager|lead)\b.*airops/i.test(h)) {
+      return 'EMPLOYEE';
+    }
     return 'ADVISOR';
   }
   return 'EMPLOYEE';
@@ -230,7 +237,7 @@ export function mapProfileToEmployee(profile: ApifyProfileOutput): MappedProfile
     about: sanitizeForDb(profile.about || profile.summary || ''),
     jobTitle,
     department: inferDepartment(headline),
-    avatarUrl: extractUrl(profile.profilePicture) || extractUrl(profile.profileImageUrl) || extractUrl(profile.avatarUrl),
+    avatarUrl: extractUrl(profile.profilePicture) || extractUrl(profile.profileImageUrl) || extractUrl(profile.profilePictureUrl) || extractUrl(profile.avatarUrl) || extractUrl(profile.img),
     experience: profile.experience ?? null,
     education: profile.education ?? null,
     skills: profile.skills ?? null,
