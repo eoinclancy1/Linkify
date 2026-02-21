@@ -87,7 +87,7 @@ function extractHashtags(text: string): string[] {
   return matches ? [...new Set(matches.map((h) => h.toLowerCase()))] : [];
 }
 
-export function detectCompanyMention(text: string, companyUrl: string): boolean {
+export function detectCompanyMention(text: string, companyUrl: string, companyName?: string): boolean {
   if (!text || !companyUrl) return false;
 
   // Extract company slug from URL, e.g. "acme-corp" from "linkedin.com/company/acme-corp"
@@ -106,6 +106,12 @@ export function detectCompanyMention(text: string, companyUrl: string): boolean 
   // Check for the full company URL
   const normalizedCompanyUrl = companyUrl.toLowerCase().replace(/\/+$/, '');
   if (lowerText.includes(normalizedCompanyUrl)) return true;
+
+  // Check for the company name (e.g. "airops" vs the URL slug "airopshq")
+  if (companyName) {
+    const lowerName = companyName.toLowerCase().trim();
+    if (lowerName && lowerName !== companySlug && lowerText.includes(lowerName)) return true;
+  }
 
   return false;
 }
@@ -193,6 +199,7 @@ export function mapPostToDatabase(
   post: ApifyPostOutput,
   companyUrl: string,
   profileUrl?: string,
+  companyName?: string,
 ): MappedPost | null {
   // Exclude reposts
   if (isRepost(post)) return null;
@@ -234,7 +241,7 @@ export function mapPostToDatabase(
     comments,
     shares,
     engagementScore: calculateEngagementScore(likes, comments, shares),
-    mentionsCompany: detectCompanyMention(textContent, companyUrl),
+    mentionsCompany: detectCompanyMention(textContent, companyUrl, companyName),
     mediaUrls: mediaUrls && mediaUrls.length > 0 ? mediaUrls as string[] : null,
     hashtags: hashtags.length > 0 ? hashtags : null,
   };
@@ -248,6 +255,7 @@ export interface PostScrapeResult {
 export async function scrapePostsForProfile(
   profileUrl: string,
   companyUrl: string,
+  companyName?: string,
 ): Promise<PostScrapeResult> {
   const input: PostScraperInput = {
     targetUrls: [profileUrl],
@@ -259,7 +267,7 @@ export async function scrapePostsForProfile(
   const result: ActorRunResult<ApifyPostOutput> = await runActor(ACTOR_ID, input);
 
   const posts = result.items
-    .map((item) => mapPostToDatabase(item, companyUrl, profileUrl))
+    .map((item) => mapPostToDatabase(item, companyUrl, profileUrl, companyName))
     .filter((p): p is MappedPost => p !== null);
 
   return {
@@ -310,6 +318,7 @@ const POST_BATCH_DELAY_MS = 5_000;
 export async function scrapePostsForProfiles(
   profiles: Array<{ profileUrl: string; authorId: string }>,
   companyUrl: string,
+  companyName?: string,
 ): Promise<{ runIds: string[]; postsByAuthor: Map<string, MappedPost[]>; costUsd: number }> {
   if (profiles.length === 0) {
     return { runIds: [], postsByAuthor: new Map(), costUsd: 0 };
@@ -354,7 +363,7 @@ export async function scrapePostsForProfiles(
       const authorId = resolveAuthorId(item, slugToAuthorId);
       if (!authorId) continue;
 
-      const mapped = mapPostToDatabase(item, companyUrl);
+      const mapped = mapPostToDatabase(item, companyUrl, undefined, companyName);
       if (!mapped) continue;
 
       postsByAuthor.get(authorId)!.push(mapped);

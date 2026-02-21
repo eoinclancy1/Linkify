@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { discoverEmployees } from '@/lib/apify/scrapers/employee-discovery';
 import { scrapeProfiles, extractCompanyStartDate, inferRole } from '@/lib/apify/scrapers/profile-scraper';
-import { scrapePostsForProfiles, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
+import { scrapePostsForProfiles, detectCompanyMention, type MappedPost } from '@/lib/apify/scrapers/post-scraper';
 import { searchMentionPosts } from '@/lib/apify/scrapers/mention-search';
 import type { ScrapeType, ScrapeStatus, Prisma } from '@prisma/client';
 
@@ -250,7 +250,7 @@ export class ScrapeOrchestrator {
       }
 
       const profiles = employees.map((e) => ({ profileUrl: e.linkedinUrl, authorId: e.id }));
-      const result = await scrapePostsForProfiles(profiles, config.companyLinkedinUrl);
+      const result = await scrapePostsForProfiles(profiles, config.companyLinkedinUrl, config.companyName);
 
       let created = 0;
       let updated = 0;
@@ -403,6 +403,30 @@ export class ScrapeOrchestrator {
   }
 
   async updateCompanyMentions(): Promise<void> {
+    // Re-evaluate mentionsCompany for posts that may have been missed
+    // (e.g. employee posts mentioning "AirOps" by name, not the URL slug "airopshq")
+    const config = await getConfig();
+    if (config.companyName && config.companyLinkedinUrl) {
+      const unchecked = await prisma.post.findMany({
+        where: { mentionsCompany: false, authorId: { not: null } },
+        select: { id: true, textContent: true },
+      });
+
+      let repaired = 0;
+      for (const p of unchecked) {
+        if (detectCompanyMention(p.textContent, config.companyLinkedinUrl, config.companyName)) {
+          await prisma.post.update({
+            where: { id: p.id },
+            data: { mentionsCompany: true },
+          });
+          repaired++;
+        }
+      }
+      if (repaired > 0) {
+        console.log(`[orchestrator] Repaired mentionsCompany on ${repaired} employee post(s)`);
+      }
+    }
+
     // Upsert mentions for posts flagged mentionsCompany (incremental)
     const posts = await prisma.post.findMany({
       where: { mentionsCompany: true },

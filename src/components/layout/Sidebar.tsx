@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Home, TrendingUp, Users, Settings, Link as LinkIcon, X, Flame, Globe, Shield } from 'lucide-react';
+import { Home, TrendingUp, Users, Settings, Link as LinkIcon, X, Flame, Globe, Shield, Eye } from 'lucide-react';
 import SidebarNavItem from '@/components/layout/SidebarNavItem';
 
 const navItems = [
@@ -11,7 +11,7 @@ const navItems = [
   { href: '/employees', icon: Users, label: 'Employees' },
   { href: '/content-engineering', icon: Globe, label: 'Content Engineering' },
   { href: '/advisors', icon: Shield, label: 'Advisors' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/ones-to-watch', icon: Eye, label: 'Ones to Watch' },
 ];
 
 interface SidebarProps {
@@ -62,6 +62,11 @@ function SidebarContent() {
           <SidebarNavItem key={item.href} {...item} />
         ))}
       </nav>
+
+      {/* Settings at bottom */}
+      <div className="px-2 pb-16">
+        <SidebarNavItem href="/settings" icon={Settings} label="Settings" />
+      </div>
     </>
   );
 }
