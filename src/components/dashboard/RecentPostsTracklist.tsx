@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Avatar from '@/components/ui/Avatar';
 import { Heart, MessageCircle, Share2, AtSign, ExternalLink } from 'lucide-react';
 
@@ -96,27 +95,28 @@ function TrackRow({ post, index }: { post: TracklistPost; index: number }) {
       <div
         className="overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
         style={{
-          maxHeight: expanded ? '160px' : '0px',
+          maxHeight: expanded ? '200px' : '0px',
           opacity: expanded ? 1 : 0,
         }}
       >
-        <div className="flex gap-4 px-4 pb-3 pt-1">
+        <div className="flex gap-4 px-4 pb-4 pt-1">
           {/* More text on the left */}
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-neutral-300 leading-relaxed line-clamp-5">
+            <p className="text-sm text-neutral-300 leading-relaxed line-clamp-6">
               {post.fullText}
             </p>
           </div>
 
           {/* Post image on the right */}
           {post.mediaUrl && (
-            <div className="relative w-36 h-[136px] rounded-lg overflow-hidden flex-shrink-0">
-              <Image
+            <div className="relative w-48 h-[180px] rounded-lg overflow-hidden flex-shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={post.mediaUrl}
                 alt="Post media"
-                fill
-                className="object-cover"
-                sizes="144px"
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             </div>
           )}

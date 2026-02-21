@@ -82,7 +82,8 @@ export default function DashboardPage() {
       const key = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
 
       if (!weekMap[key]) weekMap[key] = { employee: 0, external: 0 };
-      if (m.post?.isExternal) {
+      // author is null for external mentions (no Employee record)
+      if (!m.author) {
         weekMap[key].external++;
       } else {
         weekMap[key].employee++;
@@ -226,7 +227,7 @@ export default function DashboardPage() {
           title="Avg Engagement"
           value={stats?.avgEngagementScore ?? 0}
           icon={TrendingUp}
-          hint="Average engagement score per post, calculated from likes, comments, and shares."
+          hint="Average score per post: likes + comments×2 + shares×3. Higher = more meaningful interactions."
         />
         <StatCard
           title="Active Streaks"
@@ -239,7 +240,7 @@ export default function DashboardPage() {
       <TopPostersWidget employees={topPosters} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <EngagementTrendChart data={engagementTrendData} hint="Daily total engagement score across all posts over the last 30 days. The percentage shows week-over-week change." />
+        <EngagementTrendChart data={engagementTrendData} hint="Daily engagement score (likes + comments×2 + shares×3) across all posts, last 30 days. % shows week-over-week change." />
         <MentionsChart data={mentionsChartData} total={totalMentions} hint="Weekly count of posts mentioning your company, split by employee posts vs external authors." />
         <EngagementBreakdownChart data={breakdownData} total={totalInteractions} hint="Total likes, comments, and shares across all posts in the last 30 days." />
       </div>

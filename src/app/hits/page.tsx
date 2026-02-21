@@ -89,52 +89,64 @@ export default function HitsPage() {
     return hits.find(h => h.isExternal) ?? null;
   }, [hits]);
 
-  // ── Weekly chart data ──
+  // ── Weekly chart data (rolling 12 months, most recent on right) ──
 
   const { weeklyLikesData, weeklyPostsData } = useMemo(() => {
-    if (!hits || hits.length === 0) {
-      return { weeklyLikesData: [], weeklyPostsData: [] };
+    // Build 52 weekly buckets ending at the current week
+    const now = new Date();
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+
+    // Generate 52 week keys (ISO date strings for Monday of each week)
+    const weekKeys: string[] = [];
+    const weekLabels: string[] = [];
+    for (let i = 51; i >= 0; i--) {
+      const monday = new Date(currentMonday);
+      monday.setDate(monday.getDate() - i * 7);
+      weekKeys.push(monday.toISOString().split('T')[0]);
+      weekLabels.push(`${monday.getMonth() + 1}/${monday.getDate()}`);
     }
 
     const likesMap: Record<string, number> = {};
     const postsMap: Record<string, { employee: number; external: number }> = {};
+    for (const key of weekKeys) {
+      likesMap[key] = 0;
+      postsMap[key] = { employee: 0, external: 0 };
+    }
 
-    for (const h of hits) {
-      const d = new Date(h.publishedAt);
-      if (isNaN(d.getTime())) continue;
+    if (hits) {
+      const cutoff = new Date(weekKeys[0]);
+      for (const h of hits) {
+        const d = new Date(h.publishedAt);
+        if (isNaN(d.getTime()) || d < cutoff) continue;
 
-      const day = d.getDay();
-      const mondayOffset = day === 0 ? -6 : 1 - day;
-      const weekStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() + mondayOffset);
-      const key = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
+        // Find which week bucket this hit belongs to
+        const hDay = d.getDay();
+        const hOffset = hDay === 0 ? -6 : 1 - hDay;
+        const hMonday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + hOffset);
+        const key = hMonday.toISOString().split('T')[0];
 
-      likesMap[key] = (likesMap[key] || 0) + h.likes;
-
-      if (!postsMap[key]) postsMap[key] = { employee: 0, external: 0 };
-      if (h.isExternal) {
-        postsMap[key].external++;
-      } else {
-        postsMap[key].employee++;
+        if (likesMap[key] !== undefined) {
+          likesMap[key] += h.likes;
+          if (h.isExternal) {
+            postsMap[key].external++;
+          } else {
+            postsMap[key].employee++;
+          }
+        }
       }
     }
 
-    // Sort by date
-    const sortWeeks = (entries: [string, unknown][]) =>
-      entries.sort(([a], [b]) => {
-        const [am, ad] = a.split('/').map(Number);
-        const [bm, bd] = b.split('/').map(Number);
-        return am !== bm ? am - bm : ad - bd;
-      });
-
-    const weeklyLikes = sortWeeks(Object.entries(likesMap)).map(([week, likes]) => ({
-      week,
-      likes: likes as number,
+    const weeklyLikes = weekKeys.map((key, i) => ({
+      week: weekLabels[i],
+      likes: likesMap[key],
     }));
 
-    const weeklyPosts = sortWeeks(Object.entries(postsMap)).map(([week, counts]) => ({
-      week,
-      employee: (counts as { employee: number; external: number }).employee,
-      external: (counts as { employee: number; external: number }).external,
+    const weeklyPosts = weekKeys.map((key, i) => ({
+      week: weekLabels[i],
+      employee: postsMap[key].employee,
+      external: postsMap[key].external,
     }));
 
     return { weeklyLikesData: weeklyLikes, weeklyPostsData: weeklyPosts };

@@ -56,6 +56,7 @@ export default function WeeklyLikesChart({ data, total }: WeeklyLikesChartProps)
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#737373', fontSize: 11 }}
+                interval={Math.max(0, Math.floor(data.length / 8) - 1)}
               />
               <YAxis
                 axisLine={false}
