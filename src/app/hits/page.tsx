@@ -7,6 +7,8 @@ import useSWR from 'swr';
 import CarouselRow from '@/components/hits/CarouselRow';
 import HitCard from '@/components/hits/HitCard';
 import FeaturedHitCard from '@/components/hits/FeaturedHitCard';
+import WeeklyLikesChart from '@/components/hits/WeeklyLikesChart';
+import WeeklyPostsChart from '@/components/hits/WeeklyPostsChart';
 import Skeleton from '@/components/ui/Skeleton';
 
 const fetcher = (url: string) => fetch(url).then(r => r.json());
@@ -85,6 +87,57 @@ export default function HitsPage() {
   const topExternalHit = useMemo(() => {
     if (!hits) return null;
     return hits.find(h => h.isExternal) ?? null;
+  }, [hits]);
+
+  // ── Weekly chart data ──
+
+  const { weeklyLikesData, weeklyPostsData } = useMemo(() => {
+    if (!hits || hits.length === 0) {
+      return { weeklyLikesData: [], weeklyPostsData: [] };
+    }
+
+    const likesMap: Record<string, number> = {};
+    const postsMap: Record<string, { employee: number; external: number }> = {};
+
+    for (const h of hits) {
+      const d = new Date(h.publishedAt);
+      if (isNaN(d.getTime())) continue;
+
+      const day = d.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const weekStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() + mondayOffset);
+      const key = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
+
+      likesMap[key] = (likesMap[key] || 0) + h.likes;
+
+      if (!postsMap[key]) postsMap[key] = { employee: 0, external: 0 };
+      if (h.isExternal) {
+        postsMap[key].external++;
+      } else {
+        postsMap[key].employee++;
+      }
+    }
+
+    // Sort by date
+    const sortWeeks = (entries: [string, unknown][]) =>
+      entries.sort(([a], [b]) => {
+        const [am, ad] = a.split('/').map(Number);
+        const [bm, bd] = b.split('/').map(Number);
+        return am !== bm ? am - bm : ad - bd;
+      });
+
+    const weeklyLikes = sortWeeks(Object.entries(likesMap)).map(([week, likes]) => ({
+      week,
+      likes: likes as number,
+    }));
+
+    const weeklyPosts = sortWeeks(Object.entries(postsMap)).map(([week, counts]) => ({
+      week,
+      employee: (counts as { employee: number; external: number }).employee,
+      external: (counts as { employee: number; external: number }).external,
+    }));
+
+    return { weeklyLikesData: weeklyLikes, weeklyPostsData: weeklyPosts };
   }, [hits]);
 
   return (
@@ -175,6 +228,14 @@ export default function HitsPage() {
               postUrl={topExternalHit.url}
             />
           )}
+        </div>
+      )}
+
+      {/* ── Weekly Charts ── */}
+      {!isLoading && hits && hits.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <WeeklyLikesChart data={weeklyLikesData} total={totalLikes} />
+          <WeeklyPostsChart data={weeklyPostsData} total={totalHits} />
         </div>
       )}
 
