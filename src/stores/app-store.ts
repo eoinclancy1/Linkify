@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 
 interface AppState {
-  timeRange: 7 | 14 | 30;
-  setTimeRange: (range: 7 | 14 | 30) => void;
-  leaderboardSort: 'engagement' | 'likes' | 'comments' | 'shares' | 'recent';
-  setLeaderboardSort: (sort: 'engagement' | 'likes' | 'comments' | 'shares' | 'recent') => void;
+  timeRange: 2 | 7 | 14 | 30;
+  setTimeRange: (range: 2 | 7 | 14 | 30) => void;
+  leaderboardSort: 'engagement' | 'likes' | 'comments' | 'shares';
+  setLeaderboardSort: (sort: 'engagement' | 'likes' | 'comments' | 'shares') => void;
   employeeSort: 'streak' | 'posts' | 'name' | 'recent';
   setEmployeeSort: (sort: 'streak' | 'posts' | 'name' | 'recent') => void;
   searchQuery: string;

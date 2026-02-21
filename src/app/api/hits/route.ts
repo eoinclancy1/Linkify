@@ -3,18 +3,21 @@ import { getDataProvider } from '@/lib/data/provider';
 
 export async function GET() {
   const provider = getDataProvider();
-  const [posts, employees] = await Promise.all([
+  const [posts, employees, advisors] = await Promise.all([
     provider.getAllPosts(),
     provider.getEmployees(),
+    provider.getAdvisors(),
   ]);
 
   const empMap = new Map(employees.map(e => [e.id, e]));
+  const advisorMap = new Map(advisors.map(a => [a.id, a]));
 
-  // Employee posts with 100+ likes
+  // Employee + advisor posts with 100+ likes
   const employeeHits = posts
     .filter(p => p.engagement.likes >= 100 && !p.isExternal)
     .map(p => {
-      const emp = p.authorId ? empMap.get(p.authorId) : null;
+      const emp = p.authorId ? (empMap.get(p.authorId) ?? advisorMap.get(p.authorId)) : null;
+      const isAdvisor = p.authorId ? advisorMap.has(p.authorId) : false;
       return {
         id: p.id,
         authorId: p.authorId,
@@ -31,6 +34,7 @@ export async function GET() {
         engagementScore: p.engagement.engagementScore,
         mentionsCompany: p.mentionsCompany,
         isExternal: false,
+        isAdvisor,
       };
     });
 
@@ -56,6 +60,7 @@ export async function GET() {
         engagementScore: p.engagement.engagementScore,
         mentionsCompany: p.mentionsCompany,
         isExternal: true,
+        isAdvisor: false,
       }));
   } else {
     // Fetch external posts from DB using inline fields
@@ -80,6 +85,7 @@ export async function GET() {
       engagementScore: p.engagementScore,
       mentionsCompany: p.mentionsCompany,
       isExternal: true,
+      isAdvisor: false,
     }));
   }
 

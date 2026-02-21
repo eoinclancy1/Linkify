@@ -27,6 +27,7 @@ interface Hit {
   engagementScore: number;
   mentionsCompany: boolean;
   isExternal: boolean;
+  isAdvisor: boolean;
 }
 
 export default function HitsPage() {
@@ -38,12 +39,12 @@ export default function HitsPage() {
 
   // ── Carousel data ──
 
-  // "Employees" — group by employee, show top hit per employee (exclude Content Engineering and external)
+  // "Employees" — group by employee, show top hit per employee (exclude Content Engineering, advisors, and external)
   const employeeHits = useMemo(() => {
     if (!hits) return [];
     const byEmployee = new Map<string, Hit>();
     for (const h of hits) {
-      if (h.isExternal || !h.authorId) continue;
+      if (h.isExternal || h.isAdvisor || !h.authorId) continue;
       if (h.department === 'Content Engineering') continue;
       const existing = byEmployee.get(h.authorId);
       if (!existing || h.likes > existing.likes) {
@@ -65,9 +66,10 @@ export default function HitsPage() {
     const byDept = new Map<string, Hit[]>();
     for (const h of hits) {
       if (!h.department) continue;
-      const existing = byDept.get(h.department) ?? [];
+      const dept = h.department === 'Design' ? 'Marketing' : h.department;
+      const existing = byDept.get(dept) ?? [];
       existing.push(h);
-      byDept.set(h.department, existing);
+      byDept.set(dept, existing);
     }
     return [...byDept.entries()]
       .map(([dept, deptHits]) => ({ department: dept, hits: deptHits.sort((a, b) => b.likes - a.likes) }))
@@ -77,7 +79,7 @@ export default function HitsPage() {
   // Featured cards — top employee hit and top external hit
   const topEmployeeHit = useMemo(() => {
     if (!hits) return null;
-    return hits.find(h => !h.isExternal) ?? null;
+    return hits.find(h => !h.isExternal && !h.isAdvisor) ?? null;
   }, [hits]);
 
   const topExternalHit = useMemo(() => {

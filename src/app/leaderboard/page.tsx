@@ -10,6 +10,7 @@ import { useAppStore } from '@/stores/app-store';
 const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 const TIME_RANGES = [
+  { label: '2 days', value: 2 },
   { label: '7 days', value: 7 },
   { label: '14 days', value: 14 },
   { label: '30 days', value: 30 },
@@ -20,7 +21,6 @@ const SORT_OPTIONS = [
   { label: 'Likes', value: 'likes' },
   { label: 'Comments', value: 'comments' },
   { label: 'Shares', value: 'shares' },
-  { label: 'Recent', value: 'recent' },
 ] as const;
 
 const AUTHOR_FILTERS = [

@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { Play, Heart } from 'lucide-react';
+import { useState, useCallback } from 'react';
 
 interface FeaturedHitCardProps {
   label: string;
@@ -22,6 +23,32 @@ export default function FeaturedHitCard({
   likes,
   postUrl,
 }: FeaturedHitCardProps) {
+  const [isImageLight, setIsImageLight] = useState(false);
+
+  const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    try {
+      const canvas = document.createElement('canvas');
+      // Sample a small region from the top-left where the label sits
+      const sampleW = Math.min(200, img.naturalWidth);
+      const sampleH = Math.min(80, img.naturalHeight);
+      canvas.width = sampleW;
+      canvas.height = sampleH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, sampleW, sampleH, 0, 0, sampleW, sampleH);
+      const { data } = ctx.getImageData(0, 0, sampleW, sampleH);
+      let totalBrightness = 0;
+      const pixelCount = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        totalBrightness += (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+      }
+      setIsImageLight(totalBrightness / pixelCount > 160);
+    } catch {
+      // CORS or other errors — keep default (dark text on light assumption won't apply)
+    }
+  }, []);
+
   const truncated = textContent.length > 100
     ? textContent.slice(0, 100).trimEnd() + '...'
     : textContent;
@@ -42,13 +69,14 @@ export default function FeaturedHitCard({
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, 50vw"
+            onLoad={onImageLoad}
           />
 
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
           {/* Label */}
-          <p className="absolute top-4 left-4 text-xs font-bold uppercase tracking-wider text-white">
+          <p className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider ${isImageLight ? 'text-black' : 'text-white'}`}>
             {label}
           </p>
 
