@@ -9,7 +9,7 @@ const navItems = [
   { href: '/leaderboard', icon: TrendingUp, label: "What's Trending" },
   { href: '/hits', icon: Flame, label: 'All Time Hits' },
   { href: '/employees', icon: Users, label: 'Employees' },
-  { href: '/content-engineering', icon: Globe, label: 'Community' },
+  { href: '/content-engineering', icon: Globe, label: 'Content Engineering' },
   { href: '/advisors', icon: Shield, label: 'Advisors' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];

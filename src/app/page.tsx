@@ -2,8 +2,10 @@
 
 import StatCard from '@/components/dashboard/StatCard';
 import TopPostersWidget from '@/components/dashboard/TopPostersWidget';
-import RecentActivityFeed from '@/components/dashboard/RecentActivityFeed';
-import EngagementChart from '@/components/dashboard/EngagementChart';
+import EngagementTrendChart from '@/components/dashboard/EngagementTrendChart';
+import MentionsChart from '@/components/dashboard/MentionsChart';
+import EngagementBreakdownChart from '@/components/dashboard/EngagementBreakdownChart';
+import RecentPostsTracklist from '@/components/dashboard/RecentPostsTracklist';
 import Skeleton from '@/components/ui/Skeleton';
 import { FileText, AtSign, TrendingUp, Flame } from 'lucide-react';
 import useSWR from 'swr';
@@ -41,42 +43,8 @@ export default function DashboardPage() {
       }));
   })();
 
-  // Build recent activity feed
-  const recentActivities = (() => {
-    if (!posts || !employees) return [];
-    const empMap: Record<string, { fullName: string; avatarUrl: string }> = {};
-    for (const e of employees) {
-      empMap[e.id] = { fullName: e.fullName, avatarUrl: e.avatarUrl };
-    }
-    return [...posts]
-      .sort((a: { publishedAt: string }, b: { publishedAt: string }) =>
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-      )
-      .slice(0, 10)
-      .map((p: { id: string; authorId: string; textContent: string; publishedAt: string; mentionsCompany: boolean; type: string; externalAuthorName?: string; externalAuthorAvatarUrl?: string }) => {
-        const emp = empMap[p.authorId] || {
-          fullName: p.externalAuthorName || 'Unknown',
-          avatarUrl: p.externalAuthorAvatarUrl || '',
-        };
-        const now = Date.now();
-        const diff = now - new Date(p.publishedAt).getTime();
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-        const timeAgo = days > 0 ? `${days}d ago` : hours > 0 ? `${hours}h ago` : 'just now';
-        return {
-          id: p.id,
-          authorName: emp.fullName,
-          authorAvatar: emp.avatarUrl,
-          excerpt: p.textContent.length > 100 ? p.textContent.slice(0, 100) + '...' : p.textContent,
-          timeAgo,
-          mentionsCompany: p.mentionsCompany,
-          type: p.type,
-        };
-      });
-  })();
-
-  // Build engagement chart data
-  const chartData = (() => {
+  // Build engagement trend data (daily totals over 30 days)
+  const engagementTrendData = (() => {
     if (!posts) return [];
     const dailyMap: Record<string, number> = {};
     const now = new Date();
@@ -95,6 +63,102 @@ export default function DashboardPage() {
     return Object.entries(dailyMap).map(([date, engagement]) => ({ date, engagement }));
   })();
 
+  // Build mentions chart data (weekly, stacked by employee vs external)
+  const { mentionsChartData, totalMentions } = (() => {
+    if (!mentions) return { mentionsChartData: [], totalMentions: 0 };
+    const weekMap: Record<string, { employee: number; external: number }> = {};
+    let total = 0;
+
+    for (const m of mentions) {
+      const d = new Date(m.mentionedAt || m.publishedAt);
+      // Get ISO week start (Monday)
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const weekStart = new Date(d);
+      weekStart.setDate(diff);
+      const key = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
+
+      if (!weekMap[key]) weekMap[key] = { employee: 0, external: 0 };
+      if (m.isExternal) {
+        weekMap[key].external++;
+      } else {
+        weekMap[key].employee++;
+      }
+      total++;
+    }
+
+    return {
+      mentionsChartData: Object.entries(weekMap).map(([week, counts]) => ({
+        week,
+        employee: counts.employee,
+        external: counts.external,
+      })),
+      totalMentions: total,
+    };
+  })();
+
+  // Build engagement breakdown data (likes, comments, shares totals)
+  const { breakdownData, totalInteractions } = (() => {
+    if (!posts) return { breakdownData: [], totalInteractions: 0 };
+    let likes = 0, comments = 0, shares = 0;
+
+    for (const p of posts) {
+      const eng = p.engagement || {};
+      likes += eng.likes || 0;
+      comments += eng.comments || 0;
+      shares += eng.shares || 0;
+    }
+
+    const total = likes + comments + shares;
+    return {
+      breakdownData: [
+        { name: 'Likes', value: likes, color: '#1DB954' },
+        { name: 'Comments', value: comments, color: '#f59e0b' },
+        { name: 'Shares', value: shares, color: '#6366f1' },
+      ],
+      totalInteractions: total,
+    };
+  })();
+
+  // Build recent posts tracklist data
+  const recentPosts = (() => {
+    if (!posts || !employees) return [];
+    const empMap: Record<string, { fullName: string; avatarUrl: string }> = {};
+    for (const e of employees) {
+      empMap[e.id] = { fullName: e.fullName, avatarUrl: e.avatarUrl };
+    }
+    return [...posts]
+      .sort((a: { publishedAt: string }, b: { publishedAt: string }) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+      )
+      .slice(0, 10)
+      .map((p: { id: string; authorId: string; textContent: string; publishedAt: string; mentionsCompany: boolean; type: string; url: string; mediaUrls?: string[]; engagement?: { likes?: number; comments?: number; shares?: number }; externalAuthorName?: string; externalAuthorAvatarUrl?: string }) => {
+        const emp = empMap[p.authorId] || {
+          fullName: p.externalAuthorName || 'Unknown',
+          avatarUrl: p.externalAuthorAvatarUrl || '',
+        };
+        const now = Date.now();
+        const diff = now - new Date(p.publishedAt).getTime();
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+        const timeAgo = days > 0 ? `${days}d` : hours > 0 ? `${hours}h` : 'now';
+        return {
+          id: p.id,
+          authorName: emp.fullName,
+          authorAvatar: emp.avatarUrl,
+          excerpt: p.textContent.length > 80 ? p.textContent.slice(0, 80) + '...' : p.textContent,
+          timeAgo,
+          mentionsCompany: p.mentionsCompany,
+          type: p.type,
+          likes: p.engagement?.likes || 0,
+          comments: p.engagement?.comments || 0,
+          shares: p.engagement?.shares || 0,
+          mediaUrl: p.mediaUrls?.[0] || null,
+          url: p.url,
+        };
+      });
+  })();
+
   if (statsLoading) {
     return (
       <div className="space-y-6">
@@ -111,7 +175,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} variant="card" />)}
         </div>
-        <Skeleton variant="card" className="h-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} variant="card" className="h-72" />)}
+        </div>
       </div>
     );
   }
@@ -158,10 +224,13 @@ export default function DashboardPage() {
 
       <TopPostersWidget employees={topPosters} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivityFeed activities={recentActivities} />
-        <EngagementChart data={chartData} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <EngagementTrendChart data={engagementTrendData} />
+        <MentionsChart data={mentionsChartData} total={totalMentions} />
+        <EngagementBreakdownChart data={breakdownData} total={totalInteractions} />
       </div>
+
+      <RecentPostsTracklist posts={recentPosts} />
     </div>
   );
 }

@@ -93,7 +93,7 @@ export default function NowPlayingBar() {
       <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
         <span className="h-2 w-2 rounded-full bg-linkify-green shrink-0" />
         <span className="text-xs text-neutral-400 shrink-0">Latest:</span>
-        <div className="overflow-hidden whitespace-nowrap flex-1">
+        <div className="ticker-wrap overflow-hidden whitespace-nowrap flex-1 cursor-default">
           <div className="animate-ticker inline-block">
             <span className="text-xs text-neutral-300">
               {tickerText}

@@ -132,6 +132,7 @@ export const seedPosts: Post[] = Array.from({ length: POST_COUNT }, (_, i) => {
   const authorId = pickEmployee();
   const mentionsCompany = rand() < 0.3;
   const template = postTemplates[Math.floor(rand() * postTemplates.length)];
+  const hasImage = rand() < 0.4;
 
   return {
     id: `post-${String(i + 1).padStart(4, '0')}`,
@@ -147,6 +148,7 @@ export const seedPosts: Post[] = Array.from({ length: POST_COUNT }, (_, i) => {
       engagementScore,
     },
     mentionsCompany,
+    ...(hasImage ? { mediaUrls: [`https://picsum.photos/seed/${i + 1}/600/400`] } : {}),
   };
 }).sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 

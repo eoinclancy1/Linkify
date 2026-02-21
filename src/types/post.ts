@@ -10,6 +10,7 @@ export interface Post {
   publishedAt: string; // ISO date string
   url: string;
   engagement: EngagementMetrics;
+  mediaUrls?: string[];
   mentionsCompany: boolean;
   isExternal?: boolean;
   externalAuthorName?: string;

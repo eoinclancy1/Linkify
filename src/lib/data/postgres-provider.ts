@@ -63,6 +63,7 @@ function mapPost(p: PrismaPost): Post {
       shares: p.shares,
       engagementScore: p.engagementScore,
     },
+    mediaUrls: Array.isArray(p.mediaUrls) ? (p.mediaUrls as string[]) : undefined,
     mentionsCompany: p.mentionsCompany,
     isExternal: p.isExternal,
     externalAuthorName: p.externalAuthorName ?? undefined,
