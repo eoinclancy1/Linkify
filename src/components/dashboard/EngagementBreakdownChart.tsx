@@ -12,6 +12,7 @@ interface BreakdownData {
 interface EngagementBreakdownChartProps {
   data: BreakdownData[];
   total: number;
+  hint?: string;
 }
 
 interface CustomTooltipProps {
@@ -32,9 +33,9 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
   );
 }
 
-export default function EngagementBreakdownChart({ data, total }: EngagementBreakdownChartProps) {
+export default function EngagementBreakdownChart({ data, total, hint }: EngagementBreakdownChartProps) {
   return (
-    <ChartCard title="Engagement Breakdown" value={total} delay={300}>
+    <ChartCard title="Engagement Breakdown" value={total} hint={hint} delay={300}>
       <div className="h-48">
         {total === 0 ? (
           <p className="text-neutral-500 text-sm pt-8 text-center">No engagement data yet.</p>

@@ -10,6 +10,7 @@ interface DataPoint {
 
 interface EngagementTrendChartProps {
   data: DataPoint[];
+  hint?: string;
 }
 
 interface CustomTooltipProps {
@@ -30,7 +31,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-export default function EngagementTrendChart({ data }: EngagementTrendChartProps) {
+export default function EngagementTrendChart({ data, hint }: EngagementTrendChartProps) {
   const total = data.reduce((sum, d) => sum + d.engagement, 0);
 
   // Week-over-week change
@@ -42,6 +43,7 @@ export default function EngagementTrendChart({ data }: EngagementTrendChartProps
     <ChartCard
       title="Engagement Trend"
       value={total}
+      hint={hint}
       trend={wowChange !== 0 ? { value: Math.abs(wowChange), isPositive: wowChange > 0 } : undefined}
       delay={0}
     >

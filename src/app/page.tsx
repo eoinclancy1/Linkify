@@ -70,16 +70,19 @@ export default function DashboardPage() {
     let total = 0;
 
     for (const m of mentions) {
-      const d = new Date(m.mentionedAt || m.publishedAt);
+      const postDate = m.post?.publishedAt;
+      if (!postDate) continue;
+      const d = new Date(postDate);
+      if (isNaN(d.getTime())) continue;
+
       // Get ISO week start (Monday)
       const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const weekStart = new Date(d);
-      weekStart.setDate(diff);
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const weekStart = new Date(d.getFullYear(), d.getMonth(), d.getDate() + mondayOffset);
       const key = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
 
       if (!weekMap[key]) weekMap[key] = { employee: 0, external: 0 };
-      if (m.isExternal) {
+      if (m.post?.isExternal) {
         weekMap[key].external++;
       } else {
         weekMap[key].employee++;
@@ -87,14 +90,20 @@ export default function DashboardPage() {
       total++;
     }
 
-    return {
-      mentionsChartData: Object.entries(weekMap).map(([week, counts]) => ({
+    // Sort by date
+    const sorted = Object.entries(weekMap)
+      .sort(([a], [b]) => {
+        const [am, ad] = a.split('/').map(Number);
+        const [bm, bd] = b.split('/').map(Number);
+        return am !== bm ? am - bm : ad - bd;
+      })
+      .map(([week, counts]) => ({
         week,
         employee: counts.employee,
         external: counts.external,
-      })),
-      totalMentions: total,
-    };
+      }));
+
+    return { mentionsChartData: sorted, totalMentions: total };
   })();
 
   // Build engagement breakdown data (likes, comments, shares totals)
@@ -204,30 +213,34 @@ export default function DashboardPage() {
           title="Total Posts (30d)"
           value={stats?.totalPosts30d ?? 0}
           icon={FileText}
+          hint="Number of LinkedIn posts published by your team in the last 30 days."
         />
         <StatCard
           title="What's Trending (30d)"
           value={stats?.totalMentions30d ?? 0}
           icon={AtSign}
+          hint="Posts that mention your company, from both employees and external authors."
         />
         <StatCard
           title="Avg Engagement"
           value={stats?.avgEngagementScore ?? 0}
           icon={TrendingUp}
+          hint="Average engagement score per post, calculated from likes, comments, and shares."
         />
         <StatCard
           title="Active Streaks"
           value={stats?.activeStreaks ?? 0}
           icon={Flame}
+          hint="Employees who have posted at least once every week for consecutive weeks."
         />
       </div>
 
       <TopPostersWidget employees={topPosters} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <EngagementTrendChart data={engagementTrendData} />
-        <MentionsChart data={mentionsChartData} total={totalMentions} />
-        <EngagementBreakdownChart data={breakdownData} total={totalInteractions} />
+        <EngagementTrendChart data={engagementTrendData} hint="Daily total engagement score across all posts over the last 30 days. The percentage shows week-over-week change." />
+        <MentionsChart data={mentionsChartData} total={totalMentions} hint="Weekly count of posts mentioning your company, split by employee posts vs external authors." />
+        <EngagementBreakdownChart data={breakdownData} total={totalInteractions} hint="Total likes, comments, and shares across all posts in the last 30 days." />
       </div>
 
       <RecentPostsTracklist posts={recentPosts} />

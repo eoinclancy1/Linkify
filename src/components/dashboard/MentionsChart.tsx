@@ -12,6 +12,7 @@ interface MentionData {
 interface MentionsChartProps {
   data: MentionData[];
   total: number;
+  hint?: string;
 }
 
 interface CustomTooltipProps {
@@ -35,9 +36,9 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-export default function MentionsChart({ data, total }: MentionsChartProps) {
+export default function MentionsChart({ data, total, hint }: MentionsChartProps) {
   return (
-    <ChartCard title="Company Mentions" value={total} delay={150}>
+    <ChartCard title="Company Mentions" value={total} hint={hint} delay={150}>
       <div className="h-48">
         {data.length === 0 ? (
           <p className="text-neutral-500 text-sm pt-8 text-center">No mention data yet.</p>

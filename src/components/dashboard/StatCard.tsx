@@ -2,18 +2,20 @@
 
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import InfoTooltip from '@/components/ui/InfoTooltip';
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
+  hint?: string;
   trend?: {
     value: number;
     isPositive: boolean;
   };
 }
 
-export default function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
+export default function StatCard({ title, value, icon: Icon, hint, trend }: StatCardProps) {
   return (
     <div className="bg-surface rounded-lg p-6 relative overflow-hidden">
       <div className="absolute -top-6 -right-6 w-20 h-20 bg-linkify-green/5 rounded-full blur-2xl" />
@@ -24,7 +26,10 @@ export default function StatCard({ title, value, icon: Icon, trend }: StatCardPr
 
       <div className="pr-12">
         <p className="text-3xl font-bold text-white">{value}</p>
-        <p className="text-neutral-400 mt-1 text-sm">{title}</p>
+        <p className="text-neutral-400 mt-1 text-sm flex items-center gap-1.5">
+          {title}
+          {hint && <InfoTooltip text={hint} />}
+        </p>
       </div>
 
       {trend && (

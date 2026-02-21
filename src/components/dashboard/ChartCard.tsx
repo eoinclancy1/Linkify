@@ -2,10 +2,12 @@
 
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import InfoTooltip from '@/components/ui/InfoTooltip';
 
 interface ChartCardProps {
   title: string;
   value: string | number;
+  hint?: string;
   trend?: {
     value: number;
     isPositive: boolean;
@@ -14,7 +16,7 @@ interface ChartCardProps {
   children: React.ReactNode;
 }
 
-export default function ChartCard({ title, value, trend, delay = 0, children }: ChartCardProps) {
+export default function ChartCard({ title, value, hint, trend, delay = 0, children }: ChartCardProps) {
   return (
     <div
       className="bg-surface rounded-lg p-6 relative overflow-hidden transition-shadow duration-300 hover:shadow-[0_0_30px_rgba(29,185,84,0.08)] hover:border-linkify-green/20 border border-transparent animate-chart-fade-in"
@@ -27,7 +29,10 @@ export default function ChartCard({ title, value, trend, delay = 0, children }: 
 
       <div className="flex items-baseline justify-between mb-4">
         <div>
-          <p className="text-sm text-neutral-400">{title}</p>
+          <p className="text-sm text-neutral-400 flex items-center gap-1.5">
+            {title}
+            {hint && <InfoTooltip text={hint} />}
+          </p>
           <div className="flex items-baseline gap-2 mt-1">
             <p className="text-2xl font-bold text-white">{typeof value === 'number' ? value.toLocaleString() : value}</p>
             {trend && (
