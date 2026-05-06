@@ -39,7 +39,7 @@ export class MockDataProvider implements DataProvider {
     return this.posts.filter((p) => isWithinDays(p.publishedAt, days));
   }
 
-  async getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean): Promise<CompanyMention[]> {
+  async getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean, limit?: number): Promise<CompanyMention[]> {
     let mentions = this.mentions;
 
     if (externalOnly) {
@@ -54,12 +54,13 @@ export class MockDataProvider implements DataProvider {
       mentions = [...mentions].sort(
         (a, b) => new Date(b.post.publishedAt).getTime() - new Date(a.post.publishedAt).getTime()
       );
-      // Re-assign ranks after sorting
       mentions = mentions.map((m, i) => ({ ...m, rank: i + 1 }));
     } else {
-      // Default sort: by engagement score descending (already sorted in seed data)
-      // Re-assign ranks after date filtering
       mentions = mentions.map((m, i) => ({ ...m, rank: i + 1 }));
+    }
+
+    if (limit !== undefined) {
+      mentions = mentions.slice(0, limit);
     }
 
     return mentions;

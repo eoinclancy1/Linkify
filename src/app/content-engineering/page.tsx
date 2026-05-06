@@ -25,6 +25,7 @@ const TIME_RANGES = [
   { label: '7d', value: 7 },
   { label: '14d', value: 14 },
   { label: '30d', value: 30 },
+  { label: '90d', value: 90 },
 ] as const;
 
 const SORT_OPTIONS = [
@@ -164,11 +165,11 @@ export default function ContentEngineeringPage() {
     searchQuery, setSearchQuery,
     contentEngTab, setContentEngTab,
   } = useAppStore();
-  const [timeRange, setTimeRange] = useState<7 | 14 | 30>(30);
+  const [timeRange, setTimeRange] = useState<7 | 14 | 30 | 90>(30);
   const [sort, setSort] = useState('engagement');
 
   const { data: mentions, isLoading } = useSWR(
-    `/api/mentions?range=${timeRange}&sort=${sort}&external=true`,
+    `/api/mentions?range=${timeRange}&sort=${sort}&external=true${timeRange === 90 ? '&limit=100' : ''}`,
     fetcher,
   );
 

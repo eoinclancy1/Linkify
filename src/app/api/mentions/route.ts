@@ -13,8 +13,10 @@ export async function GET(request: NextRequest) {
     | 'recent';
 
   const externalOnly = searchParams.get('external') === 'true';
+  const limitParam = searchParams.get('limit');
+  const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
   const provider = getDataProvider();
-  const mentions = await provider.getCompanyMentions(range, sort, externalOnly);
+  const mentions = await provider.getCompanyMentions(range, sort, externalOnly, limit);
   return NextResponse.json(mentions);
 }

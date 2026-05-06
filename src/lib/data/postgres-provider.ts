@@ -122,7 +122,7 @@ export class PostgresDataProvider implements DataProvider {
     return posts.map(mapPost);
   }
 
-  async getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean): Promise<CompanyMention[]> {
+  async getCompanyMentions(days?: number, sort?: string, externalOnly?: boolean, limit?: number): Promise<CompanyMention[]> {
     const dateFilter = days !== undefined
       ? { publishedAt: { gte: daysAgo(days) } }
       : {};
@@ -140,6 +140,7 @@ export class PostgresDataProvider implements DataProvider {
         author: true,
       },
       orderBy,
+      ...(limit !== undefined ? { take: limit } : {}),
     });
 
     return mentions.map((m, i) => {
